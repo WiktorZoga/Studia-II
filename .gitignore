@@ -1,0 +1,18 @@
+# Jupyter / Python
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Systemowe
+.DS_Store
+Thumbs.db
+
+# Virtualenv
+venv/
+env/
+
+# Inne
+*.log
+*.tmp
