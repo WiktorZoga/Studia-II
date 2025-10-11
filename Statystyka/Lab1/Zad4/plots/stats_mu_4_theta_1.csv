@@ -1,0 +1,4 @@
+Estimator,Mean,Variance,Bias,MSE
+est_1,1.0,0.04,0.0,0.04
+est_2,1.01,0.04,0.01,0.04
+est_3,0.46,0.02,-0.54,0.31

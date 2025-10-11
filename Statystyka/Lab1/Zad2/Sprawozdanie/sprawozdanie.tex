@@ -1,0 +1,101 @@
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[polish]{babel}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{csvsimple} 
+
+\geometry{margin=2.5cm}
+
+\title{Sprawozdanie 1 z Statystyki i Modeli Liniowych}
+\author{Wiktor Zoga}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\newpage
+
+\section{Zadanie 1 - Porównywanie estymatorów}
+
+\subsection{Opis eksperymentu}
+W tym zadaniu dla kolejnych parametrów
+
+\begin{enumerate}
+    \item $\theta = 0$, $\sigma = 1$
+    \item $\theta = 0$, $\sigma = 2$
+    \item $\theta = 4$, $\sigma = 1$
+    \item $\theta = 4$, $\sigma = 2$
+\end{enumerate}
+
+wygenerowano próby o rozmiarze $n=50$ z rozkładów: $ N(\theta, \sigma^2), Logist(\theta, \sigma), Cauchy(\theta, \sigma)$.
+
+Dla każdej próbki obliczono dwa estymatory:
+
+\begin{itemize}
+    \item $\hat{\theta}_1$ -- średnia arytmetyczna
+    \item $\hat{\theta}_2$ -- mediana
+\end{itemize}
+
+Doświadczenie powtórzono $10{,}000$ razy dla każdego zestawu parametrów i rozkładu.
+
+\newpage
+
+\section{Wyniki - wykresy pudełkowe i tabele statystyk}
+
+% --- makro do wstawienia wykresu i tabeli CSV pod nim
+\newcommand{\plotwithstats}[3]{
+    \subsection{$#3$, $\theta=#1$, $\sigma=#2$}
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.9\textwidth]{../plots/#3_boxplot_theta#1_sigma#2.png}
+        \caption{Boxplot estymatorów dla $\theta=#1$, $\sigma=#2$.}
+    \end{figure}
+
+    \begin{center}
+        \csvreader[
+            tabular=|l|c|c|c|c|,
+            table head=\hline Estymator & Średnia & Wariancja & Bias & MSE \\ \hline,
+            late after line=\\\hline,
+            filter expr={true},  % brak filtrowania
+            respect percent
+        ]{../plots/#3_stats_theta#1_sigma#2.csv}{Estimator=\est,Mean=\mean,Variance=\var,Bias=\bias,MSE=\mse}
+    {\est & \pgfmathprintnumber{\mean} & \pgfmathprintnumber{\var} & \pgfmathprintnumber{\bias} & \pgfmathprintnumber{\mse} }
+    \end{center}
+
+    \newpage
+}
+
+% --- teraz wywołanie dla wszystkich kombinacji parametrów
+
+\plotwithstats{0}{1}{Normal}
+\plotwithstats{0}{1}{Logistic}
+\plotwithstats{0}{1}{Cauchy}
+
+\plotwithstats{0}{2}{Normal}
+\plotwithstats{0}{2}{Logistic}
+\plotwithstats{0}{2}{Cauchy}
+
+\plotwithstats{4}{1}{Normal}
+\plotwithstats{4}{1}{Logistic}
+\plotwithstats{4}{1}{Cauchy}
+
+\plotwithstats{4}{2}{Normal}
+\plotwithstats{4}{2}{Logistic}
+\plotwithstats{4}{2}{Cauchy}
+
+\subsection{Dyskusja}
+To wszystko jest jeszcze do zrobienia w trakcie zajęć.
+\begin{itemize}
+    \item Które estymatory są nieobciążone, a które mają zauważalne obciążenie.
+    \item Jak zmienia się wariancja w zależności od $n$.
+    \item Porównanie stabilności estymatorów dla małych i dużych próbek.
+    \item Wnioski dotyczące odporności na wartości ekstremalne.
+\end{itemize}
+
+\end{document}
