@@ -1,0 +1,7 @@
+Estimator,Mean,Variance,Bias,MSE
+Normal est_1,4.0,0.02,0.0,0.02
+Normal est_2,4.0,0.03,0.0,0.03
+Logistic est_1,4.0,0.06,0.0,0.06
+Logistic est_2,4.0,0.08,0.0,0.08
+Cauchy est_1,4.97,14695.66,0.97,14695.13
+Cauchy est_2,4.0,0.05,-0.0,0.05

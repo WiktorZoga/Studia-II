@@ -75,13 +75,69 @@ wyliczono wariancję, błąd średniokwadratowy oraz obciązenie każdego z esym
 \plotwithstats{4}{1}
 \plotwithstats{4}{4}
 
-\subsection{Dyskusja}
-To wszystko jest jeszcze do zrobienia w trakcie zajęć.
+\section{Dyskusja Wyników}
+
+W tym zadaniu celem była estymacja parametru $\theta$, 
+który w notacji rozkładu $\mathcal{N}(\mu, \theta)$ odpowiada \textbf{wariancji}.
+
+\subsection*{Analiza Estymatora $\hat{\theta}_1 = S^2$}
+
+Jest to klasyczny, \textbf{nieobciążony estymator wariancji} z próby.
 \begin{itemize}
-    \item Które estymatory są nieobciążone, a które mają zauważalne obciążenie.
-    \item Jak zmienia się wariancja w zależności od $n$.
-    \item Porównanie stabilności estymatorów dla małych i dużych próbek.
-    \item Wnioski dotyczące odporności na wartości ekstremalne.
+    \item \textbf{Obciążenie:} Zgodnie z rachunkami, które przeprowadziliśmy na wykładzie $E[S^2] = E[\hat{\theta}_1] = \sigma^2 = \theta$. 
+
+    \item \textbf{MSE:} Ponieważ estymator jest nieobciążony, jego MSE jest równe jego wariancji: $\text{MSE}(\hat{\theta}_1) = \text{Var}(\hat{\theta}_1)$.
+
+    Dokładnie to:
+    \[
+        \boxed{
+            E[S^2] = \sigma^2, \quad \mathrm{Var}(S^2) = \frac{2\sigma^4}{n-1}
+        }       
+    \]
+    \begin{itemize}
+        \item Gdy $\theta = 1$ (wariancja populacji), $\text{MSE}(\hat{\theta}_1) = \frac{2 \cdot 1^2}{49} \approx 0.04$.
+        \item Gdy $\theta = 4$ (wariancja populacji), $\text{MSE}(\hat{\theta}_1) = \frac{2 \cdot 4^2}{49} = \frac{32}{49} \approx 0.65$.
+    \end{itemize}
+    Wyniki eksperymentu zgadzają się z teoretycznymi obliczeniami.
+
+\end{itemize}
+
+\subsection*{Analiza Estymatora $\hat{\theta}_2$}
+
+Estymator ten jest analogiczną konstrukcją do $S^2$, jednak zamiast optymalnego estymatora średniej $\bar{X}$, używa on estymatora odpornego -- \textbf{mediany} ($\hat{m} = \text{median}(X)$).
+\begin{itemize}
+    \item W rozkładzie normalnym $\hat{m}$ jest również nieobciążonym estymatorem $\mu$, jednak jest on \textbf{mniej efektywny} (ma większą wariancję) niż $\bar{X}$.
+    \item Ponieważ do obliczenia $\hat{\theta}_2$ używamy "mniej dokładnego" oszacowania środka rozkładu, intuicyjnie spodziewamy się, że $\hat{\theta}_2$ będzie \textbf{nieco gorszym} estymatorem wariancji $\theta$ niż $\hat{\theta}_1$.
+    \item Wyniki symulacji sugerują, że jest to estymator poprawny i bardzo zbliżony do $\hat{\theta}_1$, jednak różnica w biasie i MSE jest zauważalna.
+\end{itemize}
+
+\subsection*{Analiza Estymatora $\hat{\theta}_3$}
+
+Estymator $\hat{\theta}_3 = \text{median}((X_i - \bar{X})^2)$ jest przykładem estymatora \textbf{obciążonego}.
+
+\subsubsection*{Analiza asymptotyczna}
+
+Aby formalnie wykazać obciążenie, zbadajmy granicę, do której zbiega estymator. Wraz ze wzrostem $n \to \infty$, średnia z próby $\bar{X}$ zbiega do $\mu$. Zatem $\hat{\theta}_3$ zbiega (według prawdopodobieństwa) do $m = \text{median}((X_i - \mu)^2)$.
+
+Musimy wyznaczyć wartość tej mediany $m$.
+\begin{itemize}
+    \item Niech $X_i \sim \mathcal{N}(\mu, \theta)$.
+    \item Standaryzujmy zmienną: $Z = (X_i - \mu) / \sqrt{\theta}$, gdzie $Z \sim \mathcal{N}(0, 1)$.
+    \item Kwadrat tej zmiennej, $Z^2$, ma rozkład $\chi^2_1$ (Chi-kwadrat z 1 stopniem swobody).
+\end{itemize}
+Wartość $m$, do której zbiega estymator, to:
+\[ m = \text{median}((X_i - \mu)^2) = \text{median}(\theta \cdot Z^2) = \theta \cdot \text{median}(\chi^2_1) \]
+
+Mediana rozkładu $\chi^2_1$ to wartość $t$, dla której $P(Z^2 \le t) = 2\Phi(\sqrt{t}) - 1 = 0.5$. Jak wynika z obliczeń, $t = (\Phi^{-1}(0.75))^2 \approx (0.6745)^2 \approx \mathbf{0.4549}$.
+
+\subsubsection*{Wnioski z symulacji}
+
+Oznacza to, że estymator $\hat{\theta}_3$ nie zbiega do $\theta$, lecz do $\approx 0.4549 \cdot \theta$.
+Fakt ten w pełni wyjaśnia wyniki obserwowane w symulacji:
+\begin{itemize}
+    \item Estymator wykazuje \textbf{znaczące obciążenie}, systematycznie zaniżając prawdziwą wariancję $\theta$ o około 55\%.
+    \item Obserwacja z eksperymentu dla $\theta=4$ (gdzie wynik był $\approx 1.86$) jest bardzo bliska wartości teoretycznej, $4 \cdot 0.4549 \approx 1.82$.
+    \item To duże obciążenie jest głównym składnikiem \textbf{wysokiego błędu średniokwadratowego (MSE)}, zgodnie ze wzorem $\text{MSE} = \text{Var} + \text{Bias}^2$.
 \end{itemize}
 
 \end{document}

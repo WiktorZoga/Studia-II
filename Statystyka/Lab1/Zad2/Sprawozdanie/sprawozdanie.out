@@ -1,16 +1,9 @@
 \BOOKMARK [1][-]{section.1}{Zadanie 1 - Por\363wnywanie estymator\363w}{}% 1
 \BOOKMARK [2][-]{subsection.1.1}{Opis eksperymentu}{section.1}% 2
 \BOOKMARK [1][-]{section.2}{Wyniki - wykresy pude\233kowe i tabele statystyk}{}% 3
-\BOOKMARK [2][-]{subsection.2.1}{Normal, =0, =1}{section.2}% 4
-\BOOKMARK [2][-]{subsection.2.2}{Logistic, =0, =1}{section.2}% 5
-\BOOKMARK [2][-]{subsection.2.3}{Cauchy, =0, =1}{section.2}% 6
-\BOOKMARK [2][-]{subsection.2.4}{Normal, =0, =2}{section.2}% 7
-\BOOKMARK [2][-]{subsection.2.5}{Logistic, =0, =2}{section.2}% 8
-\BOOKMARK [2][-]{subsection.2.6}{Cauchy, =0, =2}{section.2}% 9
-\BOOKMARK [2][-]{subsection.2.7}{Normal, =4, =1}{section.2}% 10
-\BOOKMARK [2][-]{subsection.2.8}{Logistic, =4, =1}{section.2}% 11
-\BOOKMARK [2][-]{subsection.2.9}{Cauchy, =4, =1}{section.2}% 12
-\BOOKMARK [2][-]{subsection.2.10}{Normal, =4, =2}{section.2}% 13
-\BOOKMARK [2][-]{subsection.2.11}{Logistic, =4, =2}{section.2}% 14
-\BOOKMARK [2][-]{subsection.2.12}{Cauchy, =4, =2}{section.2}% 15
-\BOOKMARK [2][-]{subsection.2.13}{Dyskusja}{section.2}% 16
+\BOOKMARK [2][-]{subsection.2.1}{=0, =1}{section.2}% 4
+\BOOKMARK [2][-]{subsection.2.2}{=0, =2}{section.2}% 5
+\BOOKMARK [2][-]{subsection.2.3}{=4, =1}{section.2}% 6
+\BOOKMARK [2][-]{subsection.2.4}{=4, =2}{section.2}% 7
+\BOOKMARK [2][-]{subsection.2.5}{Dyskusja}{section.2}% 8
+\BOOKMARK [1][-]{section.3}{Dyskusja Wynik\363w}{}% 9
