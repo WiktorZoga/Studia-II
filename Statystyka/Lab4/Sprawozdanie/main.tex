@@ -1,0 +1,334 @@
+\documentclass[12pt, a4paper]{article}
+
+% --- PAKIETY ---
+\usepackage[polish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{placeins}
+\usepackage{amsmath}    % Potrzebne do zapisu hipotez
+\usepackage{amssymb}    % Symbole matematyczne
+\usepackage{xcolor}     % Do wyróżniania ważnych wniosków
+
+% Marginesy
+\geometry{total={170mm,257mm}, left=20mm, top=20mm}
+
+% Ścieżki do grafik
+\graphicspath{ {../zad1/} {../zad2/} {../zad3/} {../zad4/} }
+
+% Automatyczne centrowanie
+\makeatletter
+\g@addto@macro\@floatboxreset\centering
+\makeatother
+
+% Metadane
+\title{\textbf{Sprawozdanie: Laboratorium 4} \\ \large Regresja liniowa prosta}
+\author{Wiktor Zoga}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+% ============================================================
+\section{Zadanie 1}
+% ============================================================
+
+\subsection{Analiza wstępna i model (Podpunkt a)}
+Na podstawie wygenerowanego wykresu punktowego (Rysunek 1) stwierdzono, że zależność między liczbą kopiarek a czasem obsługi ma liniowy charakter. Wraz ze wzrostem liczby maszyn, czas obsługi rośnie proporcjonalnie.
+
+Wyznaczone równanie regresji liniowej prostej:
+\begin{equation}
+    \hat{Y} = \text{Intercept} + \text{Slope} \cdot X
+\end{equation}
+(Szczegółowe wartości liczbowe parametrów znajdują się w tabeli poniżej).
+
+\subsection{Estymacja parametrów (Podpunkt b)}
+Poniższa tabela przedstawia oszacowane wartości współczynników (Slope, Intercept) oraz ich błędy standardowe. Porównano wyniki uzyskane z ręcznych wzorów teoretycznych oraz z biblioteki Python (różnice są pomijalne, wynikają z zaokrągleń maszynowych).
+
+\input{../zad1/tab_params.tex}
+
+\subsection{Testy istotności i interpretacja P-value (Podpunkt c)}
+Przeprowadzono test t-Studenta dla współczynnika kierunkowego (Slope, $\beta_1$).
+
+\textbf{Definicja matematyczna:}
+Testujemy hipotezę zerową $H_0: \beta_1 = 0$ (brak zależności) przeciwko $H_1: \beta_1 \neq 0$. Statystyka testowa $t$ sprawdza, jak wiele błędów standardowych dzieli nasz wynik od zera.
+
+\textbf{Wyniki:}
+Na podstawie tabeli powyżej, p-wartość (P-val) dla Slope jest bliska zeru ($p < 0.05$).
+
+\begin{quote}
+    \textbf{Interpretacja (dla niematematematyka):}
+    Jeśli założymy, że liczba kopiarek NIE ma wpływu na czas (hipoteza zerowa jest prawdziwa), to prawdopodobieństwo zaobserwowania takich danych jak nasze wynosi niemal 0\%.
+    Oznacza to, że dane dużym prawdopodobieństwem świadczą, że hipoteza zerowa jest fałszywa.
+\end{quote}
+
+\textbf{Decyzja:} Odrzucamy hipotezę zerową. Współczynnik kierunkowy jest istotny statystycznie.
+
+\subsection{Analiza predykcyjna (Podpunkty d, e)}
+Dokonano estymacji dla zadanych wartości $k \in \{1, 5, 8, 11, 25, 100\}$.
+
+\textbf{1. Przedział ufności dla wartości oczekiwanej (CI):}
+\input{../zad1/tab_ci.tex}
+
+\textbf{2. Przedział predykcyjny dla nowej obserwacji (PI):}
+\input{../zad1/tab_pi.tex}
+
+\textbf{Wnioski:}
+W obu przypadkach przedziały rozszerzają się, im dalej wartość $X$ znajduje się od średniej $\bar{X}$. Wynika to ze wzrostu niepewności estymacji linii regresji na krańcach zbioru danych.
+
+\subsection{Wizualizacja i porównanie przedziałów (Podpunkt f)}
+\begin{figure}[H]
+    \includegraphics[width=0.9\textwidth]{../zad1/wykres_zad1.png}
+    \caption{Model regresji z naniesionymi 95\% pasmami ufności (niebieskie) i predykcji (zielone).}
+\end{figure}
+
+\textbf{Dlaczego PI (zielony) jest szerszy niż CI (niebieski)?}
+\begin{itemize}
+    \item \textbf{Matematycznie:} Wariancja predykcji zawiera dodatkowy składnik „1” pod pierwiastkiem: $s^2_{pred} = s^2 ( 1 + \dots )$.
+    \item \textbf{Intuicyjnie:} CI (Przedział Ufności) mówi nam, gdzie leży \textit{średnia} (np. "Jaki jest średni czas serwisu dla 5 kopiarek?"). PI (Przedział Predykcji) mówi o \textit{konkretnym przypadku} (np. "Ile czasu zajmie serwis u Pana Kowalskiego jutro?").
+    
+    PI musi uwzględniać nie tylko błąd naszego modelu, ale też naturalną losowość (szum) pojedynczego zdarzenia, dlatego zawsze jest szerszy.
+\end{itemize}
+
+\FloatBarrier
+
+% ============================================================
+\section{Zadanie 2}
+% ============================================================
+
+% ---------------- PODPUNKT A ----------------
+\subsection{Model regresji GPA od IQ (Podpunkt a)}
+Zbadano wpływ wyniku testu IQ na średnią ocen (GPA).
+
+\textbf{Współczynnik determinacji $R^2$:}
+Poniższa tabela porównuje wartość $R^2$ obliczoną ze wzoru teoretycznego oraz funkcją biblioteczną.
+\input{../zad2/zad2_r2.tex}
+
+\begin{quote}
+    \textbf{Interpretacja $R^2$ (dla niematematematyka):}
+    Współczynnik $R^2$ mówi nam, jaki procent zmienności ocen został rozwiązany przez nasz model.
+    Wartość $R^2 \approx 0.4$ (przykładowo) oznaczałaby, że inteligencja (IQ) wyjaśnia 40\% różnic w ocenach między uczniami. Pozostałe 60\% zależy od innych czynników (np. pracowitość, stres, losowość), których model nie uwzględnia.
+\end{quote}
+
+% ---------------- PODPUNKT B ----------------
+\subsection{Test F istotności regresji (Podpunkt b)}
+Test F (ANOVA) służy do sprawdzenia, czy model jako całość ma sens.
+\begin{itemize}
+    \item $H_0: \beta_1 = 0$ (Model nie wyjaśnia niczego lepiej niż zwykła średnia).
+    \item $H_1: \beta_1 \neq 0$ (Model wnosi istotną informację).
+\end{itemize}
+
+\textbf{Wyniki testu (Manual vs Python):}
+\input{../zad2/zad2_ftest.tex}
+
+\textbf{Decyzja:}
+Niska p-wartość ($p < 0.05$) oznacza, że odrzucamy $H_0$. Zatem wariancja wyjaśniona przez model jest istotnie większa od szumu.
+
+\textbf{Interpretacja (dla niematematyka):}
+Podobnie jak wcześniej, niska p-wartość wskazuje, że jest mało prawdopodobne, aby zaobserwowane dane pojawiły się przypadkowo, gdyby IQ nie miało wpływu na GPA. Oznacza to, że IQ jest istotnym predyktorem GPA.
+
+% ---------------- PODPUNKT C i D ----------------
+\subsection{Predykcja i analiza obserwacji (Podpunkty c, d)}
+Wyznaczono przewidywane GPA oraz 90\% przedziały predykcyjne dla uczniów o IQ: 75, 100, 140.
+
+\input{../zad2/zad2_pred.tex}
+
+\label{sec:wykres_iq}
+\begin{figure}[H]
+    \includegraphics[width=0.9\textwidth]{../zad2/zad2_wykres.png}
+    \caption{Zależność GPA od IQ z naniesionym 90\% pasmem predykcji. Czerwone krzyżyki oznaczają obserwacje wykraczające poza ten przedział.}
+\end{figure}
+
+% ---------------- PODPUNKT E ----------------
+\subsection{Porównanie z testem PH (Podpunkt e)}
+W ostatnim kroku zbudowano drugi model, gdzie zmienną objaśniającą jest wynik testu PH.
+
+\input{../zad2/zad2_compare.tex}
+
+\textbf{Wniosek końcowy:}
+Porównując współczynniki $R^2$ obu modeli, wskazujemy ten, który lepiej "tłumaczy" rzeczywistość. Zmienna z wyższym $R^2$ jest silniejszym predyktorem.
+
+\FloatBarrier
+
+% ============================================================
+\section{Zadanie 3: Symulacje Monte Carlo}
+% ============================================================
+
+\subsection{Specyfikacja eksperymentu}
+Symulację przeprowadzono dla $N=1000$ powtórzeń przy liczebności próby $n=200$.
+Wektor $X$ wygenerowano z rozkładu $X \sim N(0, \frac{1}{500} I)$.
+Model generujący: $Y = 5 + \beta_1 X + \varepsilon$. Badano 6 scenariuszy rozkładu błędów $\varepsilon$:
+
+\begin{itemize}
+    \item \textbf{Błąd I Rodzaju ($\beta_1 = 0$):} (a) $N(0, 1)$, (b) $Exp(1)$, (c) $L(0, 1)$.
+    \item \textbf{Moc Testu ($\beta_1 = 2$):} (d) $N(0, 1)$, (e) $Exp(1)$, (f) $L(0, 1)$.
+\end{itemize}
+
+\subsection{Wyniki symulacji}
+Tabela przedstawia empiryczne prawdopodobieństwo odrzucenia $H_0$ w zestawieniu z teorią.
+
+\input{../zad3/zad3_monte_carlo.tex}
+
+\subsection{Analiza zgodności wyników}
+
+\textbf{1. Błąd I rodzaju (Scenariusze a, b, c):}
+Empiryczne częstości odrzuceń oscylują wokół $\alpha = 0.05$, co potwierdza ogólną odporność testu.
+\begin{itemize}
+    \item \textbf{Uwaga o rozbieżności:} Dla rozkładu logistycznego wynik empiryczny jest nieco niższy od teoretycznego. Wynika to z "grubych ogonów" tego rozkładu i wolniejszego tempa zbieżności statystyk do rozkładu t-Studenta. Przy takiej zbieżności, liczba powtórzeń symulacji $N=1000$ może być niewystarczająca, by idealnie trafić w punkt 0.05 (błąd próbkowania).
+\end{itemize}
+
+\textbf{2. Moc testu (Scenariusze d, e, f):}
+Obserwujemy niemal idealną zgodność symulacji z teorią.
+\begin{itemize}
+    \item Dla rozkładu Normalnego i Wykładniczego ($\sigma^2=1$) moc wynosi $\approx 1.0$.
+    \item Dla rozkładu Logistycznego moc spada. Jest to skutek dużej wariancji szumu. Teoria idealnie przewiduje ten spadek, gdy do wzorów podstawimy rzeczywistą wariancję.
+\end{itemize}
+
+\begin{figure}[H]
+    \includegraphics[width=1.0\textwidth]{../zad3/zad3_wykres.png}
+    \caption{Wizualizacja wyników: Zauważalny spadek mocy dla przypadku (f) oraz wysoka zgodność teorii z praktyką.}
+\end{figure}
+
+\FloatBarrier
+
+% ============================================================
+\section{Zadanie 4}
+% ============================================================
+
+\subsection{Model Liniowy (Podpunkty a, b)}
+W pierwszej kolejności dopasowano klasyczny model regresji liniowej, traktując czas jako zmienną objaśniającą ($X$), a stężenie roztworu jako zmienną odpowiedzi ($Y$).
+\begin{equation}
+Y = \beta_0 + \beta_1 \cdot \text{Czas} + \varepsilon
+\end{equation}
+
+\textbf{1. Wyniki estymacji i test istotności:}
+Poniższa tabela prezentuje parametry modelu wygenerowane automatycznie przez skrypt Python.
+\input{../zad4/zad4_lin_params.tex}
+
+\textbf{Statystyki dopasowania:}
+\input{../zad4/zad4_lin_stats.tex}
+
+\textbf{Interpretacja parametrów:}
+\begin{itemize}
+    \item \textbf{Slope (Time):} Wynosi ok. $-0.3240$. Ujemny znak potwierdza, że wraz z upływem czasu stężenie roztworu maleje.
+    \item \textbf{Intercept:} Wynosi ok. $2.5753$. Jest to teoretyczne stężenie w chwili $t=0$.
+\end{itemize}
+
+\textbf{Test hipotezy:}
+Testujemy hipotezę o niezależności stężenia od czasu:
+\begin{itemize}
+    \item $H_0: \beta_1 = 0$ (Czas nie wpływa na stężenie).
+    \item $H_1: \beta_1 \neq 0$ (Istnieje zależność).
+\end{itemize}
+
+\textbf{Wniosek:}
+P-wartość dla parametru czasu wynosi $4.61 \times 10^{-6}$ (jest znacznie mniejsza od poziomu istotności $\alpha = 0.05$).
+\textbf{Decyzja:} Odrzucamy hipotezę zerową. Istnieje silna, istotna statystycznie zależność między czasem a stężeniem.
+
+\textbf{2. Ocena dopasowania (Dlaczego model liniowy jest błędny?)}
+Mimo że parametry są istotne, model liniowy jest \textbf{niepoprawny} z dwóch powodów:
+\begin{enumerate}
+    \item \textbf{Fizyczny:} Model liniowy zakłada stały spadek stężenia. W dłuższym czasie przewidywałby ujemne stężenie (dla $t > 8$ godzin), co jest fizycznie niemożliwe.
+    \item \textbf{Statystyczny:} Wykres reszt wykazuje wyraźny wzorzec w kształcie litery "U". Model przeszacowuje wartości na krańcach i niedoszacowuje w środku. Sureguje to, że zjawisko jest nieliniowe.
+\end{enumerate}
+
+\begin{figure}[H]
+    \includegraphics[width=1.0\textwidth]{../zad4/zad4_wykres_lin.png}
+    \caption{Model liniowy (po lewej) oraz wykres reszt (po prawej), który obnaża nieliniowość danych.}
+\end{figure}
+
+\subsection{Transformacja Boxa-Coxa (Podpunkt c)}
+Aby znaleźć optymalną transformację zmiennej zależnej $Y$, zastosowano metodę największej wiarogodności dla rodziny transformacji potęgowych Boxa-Coxa.
+
+\textbf{1. Weryfikacja obliczeń (Manual vs Python):}
+Aby potwierdzić poprawność wyniku, wyznaczono optymalne $\lambda$ dwoma metodami:
+\begin{itemize}
+    \item \textbf{Manualnie:} Przeszukując siatkę 1000 punktów w przedziale $[-2, 2]$ i obliczając dla każdego punktu wartość funkcji log-wiarogodności wg wzoru:
+    $$ LL(\lambda) = -\frac{n}{2} \ln(\sigma^2_\lambda) + (\lambda - 1) \sum \ln(Y_i) $$
+    \item \textbf{Bibliotecznie:} Używając optymalizatora \texttt{scipy.stats.boxcox}.
+\end{itemize}
+
+% TERAZ TABELA JEST AUTOMATYCZNA
+\input{../zad4/zad4_boxcox_compare.tex}
+
+Wyniki są zbieżne. Obie metody wskazują, że optimum leży bardzo blisko zera. Zgodnie z definicją Boxa-Coxa, $\lambda = 0$ oznacza transformację logarytmiczną ($Y' = \ln Y$).
+
+\subsection{Model Logarytmiczny (Podpunkty d, e)}
+Na podstawie wyników analizy Boxa-Coxa zbudowano model regresji liniowej dla zmiennych przetransformowanych:
+\begin{equation}
+    \ln(Y_i) = \beta_0 + \beta_1 t_i + \varepsilon_i
+\end{equation}
+
+Powyższe równanie liniowe w skali logarytmicznej jest matematycznie równoważne **modelowi wykładniczemu** w skali oryginalnej. Po obustronnym zlogarytmowaniu ($e^{\dots}$) otrzymujemy:
+\begin{equation}
+    Y_i = e^{\beta_0 + \beta_1 t_i} \cdot e^{\varepsilon_i} = \alpha \cdot e^{\beta_1 t_i}
+\end{equation}
+gdzie $\alpha = e^{\beta_0}$ to stężenie początkowe, a $\beta_1$ to stała szybkości reakcji (powinna być ujemna). Taka postać modelu jest zgodna z prawem kinetyki chemicznej dla reakcji I rzędu.
+
+\textbf{Wyniki estymacji:}
+Dokonano transformacji odwrotnej, aby obliczyć stężenia przewidywane $\hat{Y}$ i porównać je z obserwowanymi.
+
+\input{../zad4/zad4_log_stats.tex}
+
+\begin{figure}[H]
+    \includegraphics[width=0.85\textwidth]{../zad4/zad4_wykres_log.png}
+    \caption{Dopasowanie modelu wykładniczego (po transformacji odwrotnej). Model idealnie podąża za danymi.}
+\end{figure}
+
+\subsection{Model z transformacją czasu (Podpunkt f)}
+Alternatywnie, zamiast transformować $Y$, przekształcono zmienną niezależną (czas), wprowadzając nową zmienną $\tilde{t}$:
+\begin{equation}
+    \tilde{t} = \frac{1}{\sqrt{t}}
+\end{equation}
+
+Model regresji przyjmuje wtedy postać odwrotnej funkcji pierwiastkowej:
+\begin{equation}
+    Y_i = \beta_0 + \beta_1 \cdot \frac{1}{\sqrt{t_i}} + \varepsilon_i
+\end{equation}
+
+\input{../zad4/zad4_trans_stats.tex}
+
+\begin{figure}[H]
+    \includegraphics[width=0.85\textwidth]{../zad4/zad4_wykres_trans.png}
+    \caption{Dopasowanie modelu z transformacją $1/\sqrt{t}$.}
+\end{figure}
+
+\subsection{Podsumowanie i dyskusja wyników}
+Celem zadania było znalezienie modelu najlepiej opisującego spadek stężenia roztworu w czasie. Przeanalizowano trzy podejścia, których wyniki zestawiono poniżej.
+
+\input{../zad4/zad4_summary.tex}
+
+\textbf{Szczegółowa analiza porównawcza:}
+
+\begin{enumerate}
+    \item \textbf{Model Liniowy ($Y \sim t$):}
+    \begin{itemize}
+        \item \textbf{Ocena:} Niepoprawny.
+        \item \textbf{Powód:} Mimo $R^2 \approx 0.81$, wykres reszt wykazuje silną strukturę (nieliniowość). Co więcej, model ten przewiduje, że po odpowiednio długim czasie stężenie spadnie poniżej zera, co jest sprzeczne z prawami fizyki.
+    \end{itemize}
+
+    \item \textbf{Model Logarytmiczny ($\ln Y \sim t$):}
+    \begin{itemize}
+        \item \textbf{Ocena:} Najlepszy.
+        \item \textbf{Statystyka:} $R^2$ bliskie 1.0, reszty losowe, korelacja predykcji z danymi niemal idealna.
+        \item \textbf{Fizyka/Chemia:} Model ten po przekształceniu to $Y = C \cdot e^{-kt}$. Model ten ma sensowne uzasadnienie teoretyczne – szybkość reakcji jest proporcjonalna do aktualnego stężenia.
+    \end{itemize}
+
+    \item \textbf{Model z transformacją czasu ($Y \sim 1/\sqrt{t}$):}
+    \begin{itemize}
+        \item \textbf{Ocena:} Akceptowalny statystycznie, ale słabszy teoretycznie.
+        \item \textbf{Statystyka:} $R^2$ jest bardzo wysokie, porównywalne z modelem logarytmicznym.
+        \item \textbf{Interpretacja:} Trudno znaleźć uzasadnienie fizykochemiczne dla zależności stężenia od odwrotności pierwiastka z czasu w prostych roztworach. Jest to model czysto empiryczny, podczas gdy model wykładniczy wynika z natury zjawiska.
+    \end{itemize}
+\end{enumerate}
+
+\textbf{Ostateczna rekomendacja:}
+Zdecydowanie wybieramy Model Logarytmiczny. Łączy on doskonałe dopasowanie statystyczne z poprawną interpretacją fizyczną zjawiska kinetycznego.
+
+\FloatBarrier
+
+\end{document}
