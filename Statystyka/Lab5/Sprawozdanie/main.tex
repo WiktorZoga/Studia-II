@@ -1,0 +1,134 @@
+\documentclass[a4paper,12pt]{article}
+
+% --- Pakiety ---
+\usepackage[polish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{float}     
+\usepackage{booktabs}  
+\usepackage{amsmath}
+\usepackage{hyperref}  
+\usepackage{caption}
+
+% --- DODANO PAKIET DO CENTROWANIA TABEL ---
+\usepackage{etoolbox} 
+% Ta komenda mówi: "Na początku każdego środowiska 'table' wstaw \centering"
+\AtBeginEnvironment{table}{\centering}
+% ------------------------------------------
+
+% --- Ustawienia marginesów ---
+\geometry{
+ a4paper,
+ total={170mm,257mm},
+ left=20mm,
+ top=20mm,
+}
+
+% --- Dane dokumentu ---
+\title{\textbf{Sprawozdanie z Laboratorium 5}}
+\author{Wiktor Zoga}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\newpage
+
+% =================================================================
+% ZADANIE 1
+% =================================================================
+\section{Zadanie 1: Regresja Liniowa na Danych Medycznych}
+
+Celem zadania była analiza zależności poziomu satysfakcji pacjenta od jego wieku, ciężkości choroby oraz poziomu niepokoju. Wykorzystano model regresji liniowej wielokrotnej.
+
+\subsection{Estymacja parametrów i testy istotności (a, c)}
+Poniższa tabela przedstawia oszacowane współczynniki regresji, ich błędy standardowe oraz wyniki testów t-Studenta.
+
+% Teraz ta tabela wycentruje się sama dzięki komendzie w preambule!
+\input{../zad1/tab_zad1_coeffs.tex}
+
+\textbf{Wnioski:} 
+Na podstawie p-wartości można stwierdzić, które zmienne są istotne statystycznie przy poziomie istotności $\alpha=0.05$. Przedziały ufności wskazują zakres, w którym z 95\% prawdopodobieństwem znajduje się prawdziwa wartość parametru.
+
+\subsection{Dopasowanie modelu (b)}
+Ocenę jakości dopasowania modelu oraz wynik ogólnego testu F przedstawiono poniżej.
+
+\input{../zad1/tab_zad1_fit.tex}
+
+Wysoka wartość statystyki F (oraz p-value < 0.05) świadczy o tym, że model jako całość jest istotny statystycznie.
+
+\subsection{Diagnostyka reszt (d)}
+W celu weryfikacji założeń modelu przeanalizowano rozkład reszt.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{../zad1/wykres_zad1_reszty.png}
+    \caption{Wykresy rozrzutu reszt względem wartości dopasowanych oraz zmiennych objaśniających.}
+    \label{fig:reszty_scatter}
+\end{figure}
+
+Wykresy nie wykazują wyraźnych struktur, co sugeruje liniowość zależności. Aby sprawdzić normalność rozkładu reszt, sporządzono histogram oraz wykres kwantylowy (Q-Q plot).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{../zad1/wykres_zad1_normalnosc.png}
+    \caption{Diagnostyka normalności reszt.}
+    \label{fig:reszty_norm}
+\end{figure}
+
+Wynik testu statystycznego Shapiro-Wilka:
+
+\input{../zad1/tab_zad1_shapiro.tex}
+
+\subsection{Porównanie modeli (e)}
+Przeprowadzono test F w celu sprawdzenia, czy dodanie zmiennych \textit{Severity} i \textit{Anxiety} do modelu zawierającego tylko \textit{Age} istotnie poprawia dopasowanie.
+
+% =================================================================
+% ZADANIE 2
+% =================================================================
+\newpage
+\section{Zadanie 2: Wpływ wysokiego wymiaru danych}
+
+W zadaniu sprawdzamy, jak zachowuje się regresja, gdy mamy bardzo dużo zmiennych ($p=950$) w stosunku do liczby obserwacji ($n=1000$). Tylko pierwsze 5 zmiennych faktycznie wpływa na wynik ($\beta=3$), reszta to szum.
+
+\subsection{Punkt B: Modele oparte na pierwszych k kolumnach}
+W tym kroku dodawaliśmy kolejne zmienne zgodnie z ich kolejnością w pliku.
+
+\input{../zad2/tab_zad2_b.tex}
+
+\textbf{Obserwacje:}
+\begin{itemize}
+    \item SSE (błąd dopasowania) zawsze spada, gdy dodajemy zmienne. Jest to jednak złudne – przy $k=950$ błąd prawie znika ($43.82$), ale model przestaje widzieć istotność prawdziwych zmiennych ($X_1, X_2$).
+    \item AIC poprawnie wskazuje najlepszy model dla $k=5$ (wartość $-14.96$). Jednak przy $k=950$ AIC "wariuje" i pokazuje ogromną wartość ujemną, co błędnie sugeruje idealny model.
+\end{itemize}
+
+\subsection{Punkt C: Wybór zmiennych z największymi współczynnikami}
+Tutaj wybieraliśmy zmienne nie po kolei, ale te, które miały najwyższe wyliczone współczynniki $\hat{\beta}$ w pełnym modelu.
+
+\input{../zad2/tab_zad2_c.tex}
+
+\textbf{Obserwacje:}
+Wybieranie zmiennych na podstawie tego, jak wysokie mają współczynniki, to "oszukiwanie" statystyki. Widzimy to po bardzo dużej liczbie fałszywych odkryć (FP) – np. dla $k=500$ model uznał aż 332 nieistotnych zmiennych za ważne.
+
+\subsection{Punkt D: Wyniki z 1000 symulacji}
+Tabela poniżej pokazuje średnie wyniki z powtórzenia całego eksperymentu 1000 razy.
+
+\input{../zad2/tab_zad2_d.tex}
+
+\paragraph{Wyniki i wnioski:}
+\begin{itemize}
+    \item \textbf{Słaba wykrywalność w punkcie C:} Jeśli wybieramy zmienne "najsilniejsze" z danych, często pomijamy te prawdziwe. Moc dla $k=1$ spadła z 100\% (w punkcie B) do zaledwie 10\% (w punkcie C).
+    \item \textbf{Zalew fałszywych odkryć:} Punkt C generuje ogromną liczbę błędów (E[FD]). Szukając na siłę najlepszych zmiennych, po prostu wybieramy te, które przypadkiem zgrały się z szumem.
+    \item \textbf{Problem $k=950$:} Gdy zmiennych jest prawie tyle co danych, testy przestają działać. Nawet w "uczciwym" punkcie B moc wykrywania $X_1$ spada do ok. 45\%.
+\end{itemize}
+
+\subsection{Wnioski końcowe}
+\begin{itemize}
+    \item \textbf{Dlaczego tak się dzieje?} W zadaniu sygnał jest słaby. Wariancja jednej ważnej zmiennej to $3^2 \cdot 0.1^2 = 0.09$, a wariancja błędu to $1.0$. Szum jest więc 11 razy silniejszy niż pojedyncza zmienna.
+    \item \textbf{Selekcja zmiennych:} Scenariusz (b) jest bezpieczniejszy, bo nie manipulujemy wyborem. Scenariusz (c) pokazuje, że wybieranie zmiennych "bo mają wysokie wyniki" prowadzi do wyciągania błędnych wniosków z szumu.
+    \item \textbf{AIC w wysokim wymiarze:} Przy dużej liczbie zmiennych ($p \approx n$) tradycyjne wskaźniki jak AIC zawodzą – promują zbyt skomplikowane modele, które po prostu "uczą się szumu" na pamięć.
+\end{itemize}
+
+\end{document}
