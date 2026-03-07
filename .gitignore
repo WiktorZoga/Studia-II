@@ -9,6 +9,10 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
+# Data
+data/
+wandb/
+
 # Virtualenv
 venv/
 env/
@@ -16,3 +20,8 @@ env/
 # Inne
 *.log
 *.tmp
+*.zip
+*.tgz
+
+# C++
+build/
