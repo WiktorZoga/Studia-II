@@ -10,3 +10,7 @@ ipython
 notebook
 torchvision
 pillow
+wandb
+optim
+ultralytics
+scikit-image

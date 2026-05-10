@@ -12,6 +12,7 @@ Thumbs.db
 # Data
 data/
 wandb/
+*.jpg
 
 # Virtualenv
 venv/
@@ -22,6 +23,12 @@ env/
 *.tmp
 *.zip
 *.tgz
+segmim/
+runs/
+opus_books_weights/
+*.json
+jpg/
 
 # C++
+pillow
 build/

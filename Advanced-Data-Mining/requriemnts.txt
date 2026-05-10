@@ -9,3 +9,10 @@ matplotlib
 wandb
 jupyter
 tqdm
+torchtext
+datasets
+tokenizers
+torchmetrics
+tensorboard
+seaborn
+recbole
