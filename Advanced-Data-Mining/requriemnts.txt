@@ -16,3 +16,4 @@ torchmetrics
 tensorboard
 seaborn
 recbole
+aeon

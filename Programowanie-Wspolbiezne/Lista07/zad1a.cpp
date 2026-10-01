@@ -49,4 +49,4 @@ private:
     size_t next(size_t it) const {
         return (it + 1) % size;
     }
-}
+};

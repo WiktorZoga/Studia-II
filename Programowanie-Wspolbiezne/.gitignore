@@ -1,0 +1,24 @@
+# CMake and build output
+/build/
+**/build/
+/cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+CTestTestfile.cmake
+Testing/
+compile_commands.json
+
+# Local editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local logs and executables
+*.log
+*.tmp
+*.out
+*.exe
+
+# Legacy local executable; source is zad1a.cpp.
+/Lista07/test

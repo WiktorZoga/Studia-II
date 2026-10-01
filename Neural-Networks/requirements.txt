@@ -14,3 +14,6 @@ wandb
 optim
 ultralytics
 scikit-image
+diffusers
+accelerate
+transformers
