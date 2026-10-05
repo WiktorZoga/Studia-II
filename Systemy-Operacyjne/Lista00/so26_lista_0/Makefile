@@ -1,4 +1,4 @@
-PROGS =	1_ls 2_cat
+PROGS =	1_ls 2_cat 3_cat
 
 include Makefile.include
 
