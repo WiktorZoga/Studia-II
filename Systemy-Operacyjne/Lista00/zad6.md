@@ -23,6 +23,10 @@ Według AMD64 przy wejściu do `_start` `%rsp` wskazuje na `argc`, następnie zn
 Jest to lista par z dodatkowymi informacjami dla procesu np.rozmiar strony (AT_PAGESZ), entry point (AT_ENTRY), adres Program Header Table (AT_PHDR).
 
 
+Użyć: LD_SHOW_AUXV=1 `plik wykonywalny`
+
+można podejrzeć entry point i jak to się zgadza z readelf -h `plik wykonywalny`
+
 4. W jaki sposób wywolać funkcje jądra?
 
 Program działający w user mode nie może bezpośrednio wywołaćfunkcji jądra. Do tego używa `system call`.

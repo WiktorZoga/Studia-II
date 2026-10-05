@@ -38,5 +38,11 @@ Skąd SO wie, pod jakm adresem umieścić segment?
 Skąd system wie, gdzie znajduje sie pierwsza instrukcja programu?
     [] Odczytuje entry point w ELF Header
 
+Polecenie readelf:
+    
+    Flagi:
+        -h ELF header
+        -S sekcje
+        -l segmenty
 
     
