@@ -32,3 +32,6 @@ jpg/
 # C++
 pillow
 build/
+
+# Lokalne obrazy instalacyjne
+*.iso
