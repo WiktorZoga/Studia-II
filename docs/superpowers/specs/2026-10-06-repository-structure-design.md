@@ -32,24 +32,23 @@ w całym repozytorium.
 
 ### Modele Językowe
 
-Nowy katalog `Modele-Jezykowe` otrzyma strukturę:
+Katalog `Modele-Jezykowe/P1` już zawiera `p1.pdf`, skrypty i pliki do pracy nad
+zadaniami. Cała istniejąca zawartość i ścieżki zostają bez zmian. Zmiany dodadzą:
 
-```text
-Modele-Jezykowe/
-├── README.md
-├── listy/
-│   └── README.md
-├── materialy/
-│   └── README.md
-├── notatki/
-│   └── README.md
-└── projekty/
-    └── README.md
-```
+- `Modele-Jezykowe/README.md` jako indeks przedmiotu i przewodnik po pracy;
+- `Modele-Jezykowe/P1/README.md` jako opis istniejących plików i punkt startowy
+  do pracy nad listą;
+- `Modele-Jezykowe/notatki/README.md` na ogólne notatki z kursu;
+- `Modele-Jezykowe/projekty/README.md` na projekty większe niż pojedyncza lista.
 
-Pliki README utrzymają puste katalogi w Git i opiszą, co należy w nich
-umieszczać. Kolejne listy będą trafiać do `listy/ListaNN`, a większe prace do
-osobnych katalogów w `projekty/`.
+Kolejne listy będą otrzymywać katalogi `P2`, `P3` itd., analogiczne do `P1`.
+Materiały konkretnej listy pozostają razem z jej plikami. Nie tworzymy
+powielającego je, centralnego katalogu `listy/` ani `materialy/`.
+
+Praca dydaktyczna ma wspierać samodzielne rozwiązywanie: asystent objaśnia
+pojęcia, pomaga rozbić problem na kroki, daje podpowiedzi stopniowo i omawia
+próby użytkownika. Nie uzupełnia całej listy ani nie wpisuje gotowych odpowiedzi
+bez wyraźnej prośby użytkownika.
 
 ### Systemy Operacyjne
 
