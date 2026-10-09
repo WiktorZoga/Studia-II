@@ -31,6 +31,11 @@ def turn_input(states, owned_count):
     return "\n".join(rows) + "\n"
 
 
+def basic_cover_layout():
+    return {(1, 1): 2, (1, 3): 1, (11, 1): 1, (11, 3): 2,
+            (3, 1): 1, (3, 3): 2, (9, 1): 2, (9, 3): 1}
+
+
 class ProtocolTest(unittest.TestCase):
     def start_bot(self, definitions, width=8, height=5, covers=None, optimal_range=5):
         self.diagnostics = tempfile.TemporaryFile()
@@ -133,31 +138,24 @@ class ProtocolTest(unittest.TestCase):
         self.assertEqual(self.commands(1), ["1;HUNKER_DOWN"])
 
     def test_both_agents_move_behind_high_cover(self):
-        covers = {(1, 1): 2, (1, 3): 1, (11, 1): 1, (11, 3): 2,
-                  (3, 1): 1, (3, 3): 2, (9, 1): 2, (9, 3): 1}
-        self.start_bot([(1, 0), (2, 0), (3, 1), (4, 1), (5, 1), (6, 1)],
-                       width=13, covers=covers, optimal_range=6)
-        self.send(turn_input([
-            (1, 0, 2, 0, 0, 0), (2, 12, 2, 0, 0, 0),
-            (3, 4, 1, 0, 0, 0), (4, 4, 3, 0, 0, 90),
-            (5, 8, 1, 0, 0, 80), (6, 8, 3, 0, 0, 10),
-        ], 2))
+        self.start_basic_cover_turn()
         lines = self.commands(2)
         self.assertTrue(lines[0].startswith("1;MOVE 0 1;SHOOT "), lines)
         self.assertTrue(lines[1].startswith("2;MOVE 12 3;SHOOT "), lines)
 
     def test_moving_agents_choose_different_less_protected_enemies(self):
-        covers = {(1, 1): 2, (1, 3): 1, (11, 1): 1, (11, 3): 2,
-                  (3, 1): 1, (3, 3): 2, (9, 1): 2, (9, 3): 1}
+        self.start_basic_cover_turn()
+        self.assertEqual(self.commands(2),
+                         ["1;MOVE 0 1;SHOOT 3", "2;MOVE 12 3;SHOOT 6"])
+
+    def start_basic_cover_turn(self):
         self.start_bot([(1, 0), (2, 0), (3, 1), (4, 1), (5, 1), (6, 1)],
-                       width=13, covers=covers, optimal_range=6)
+                       width=13, covers=basic_cover_layout(), optimal_range=6)
         self.send(turn_input([
             (1, 0, 2, 0, 0, 0), (2, 12, 2, 0, 0, 0),
             (3, 4, 1, 0, 0, 0), (4, 4, 3, 0, 0, 90),
             (5, 8, 1, 0, 0, 80), (6, 8, 3, 0, 0, 10),
         ], 2))
-        self.assertEqual(self.commands(2),
-                         ["1;MOVE 0 1;SHOOT 3", "2;MOVE 12 3;SHOOT 6"])
 
     def test_all_base_tutorial_layouts_with_and_without_decorations(self):
         # The objective rows are selected independently by the fixture.
@@ -194,10 +192,8 @@ class ProtocolTest(unittest.TestCase):
                     self.stop_bot()
 
     def test_cover_commands_use_shuffled_ids_and_current_input_order(self):
-        covers = {(1, 1): 2, (1, 3): 1, (11, 1): 1, (11, 3): 2,
-                  (3, 1): 1, (3, 3): 2, (9, 1): 2, (9, 3): 1}
         self.start_bot([(42, 1), (91, 0), (120, 1), (7, 0), (17, 1), (99, 1)],
-                       width=13, covers=covers, optimal_range=6)
+                       width=13, covers=basic_cover_layout(), optimal_range=6)
         self.send(turn_input([
             (7, 12, 2, 0, 0, 0), (120, 4, 3, 0, 0, 90),
             (99, 8, 3, 0, 0, 10), (91, 0, 2, 0, 0, 0),

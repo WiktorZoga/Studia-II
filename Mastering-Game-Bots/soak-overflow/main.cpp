@@ -129,18 +129,28 @@ bool read_turn(std::istream& input, int agent_count, TurnState& turn) {
         && turn.my_agent_count >= 0;
 }
 
-const AgentState* wettest_enemy(const GameSetup& setup, const TurnState& turn) {
-    const AgentState* target = nullptr;
-    // Preserve initial enemy order when wetness is tied, as in the referee.
+std::vector<const AgentState*> surviving_enemies(
+    const GameSetup& setup, const TurnState& turn) {
+    std::vector<const AgentState*> enemies;
     for (const auto& definition : setup.agents) {
         if (definition.player_id == setup.my_id) {
             continue;
         }
         const auto enemy = std::ranges::find(
             turn.agents, definition.id, &AgentState::id);
-        if (enemy != turn.agents.end()
-            && (target == nullptr || enemy->wetness > target->wetness)) {
-            target = &*enemy;
+        if (enemy != turn.agents.end()) {
+            enemies.push_back(&*enemy);
+        }
+    }
+    return enemies;
+}
+
+const AgentState* wettest_enemy(const GameSetup& setup, const TurnState& turn) {
+    const AgentState* target = nullptr;
+    // Preserve initial enemy order when wetness is tied, as in the referee.
+    for (const auto* enemy : surviving_enemies(setup, turn)) {
+        if (target == nullptr || enemy->wetness > target->wetness) {
+            target = enemy;
         }
     }
     return target;
@@ -148,16 +158,7 @@ const AgentState* wettest_enemy(const GameSetup& setup, const TurnState& turn) {
 
 std::vector<const AgentState*> nearby_enemies(
     const GameSetup& setup, const TurnState& turn, Position position) {
-    std::vector<const AgentState*> enemies;
-    for (const auto& definition : setup.agents) {
-        if (definition.player_id == setup.my_id) {
-            continue;
-        }
-        const auto enemy = std::ranges::find(turn.agents, definition.id, &AgentState::id);
-        if (enemy != turn.agents.end()) {
-            enemies.push_back(&*enemy);
-        }
-    }
+    auto enemies = surviving_enemies(setup, turn);
     const auto distance = [position](const AgentState* enemy) {
         return std::abs(position.x - enemy->x) + std::abs(position.y - enemy->y);
     };
@@ -198,8 +199,12 @@ std::optional<Position> best_cover_move(
         const bool occupied = std::ranges::any_of(turn.agents, [position](const auto& other) {
             return other.x == position.x && other.y == position.y;
         });
-        if (!occupied && protection(position) > best_protection) {
-            best_protection = protection(position);
+        if (occupied) {
+            continue;
+        }
+        const int candidate_protection = protection(position);
+        if (candidate_protection > best_protection) {
+            best_protection = candidate_protection;
             destination = position;
         }
     }

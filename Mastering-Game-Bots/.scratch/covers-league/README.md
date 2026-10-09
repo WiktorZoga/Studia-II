@@ -8,7 +8,7 @@ in dependency order.
 | --- | --- |
 | [01: protected movement](issues/01-protected-movement.md) | Both agents move to stronger cover |
 | [02: cover-aware target](issues/02-cover-aware-target.md) | Each agent selects a nearby enemy from its new position |
-| [03: layout verification](issues/03-layout-verification.md) | Local tests pass; final review in progress |
+| [03: layout verification](issues/03-layout-verification.md) | Local checks and two-axis review complete |
 
 The bot sends combined movement/shooting commands. Local checks cover 64 base
 layout/decorative-cover combinations, shuffled IDs, occupied or impassable
@@ -17,3 +17,6 @@ destinations, range after moving, and previous output/cover behavior.
 Paste the current `soak-overflow/main.cpp` into CodinGame's C++20 editor.
 Local tests exercise the real executable; they do not run a complete match.
 The covers platform result and promotion remain pending until reported.
+
+The [review](review.md) found no specification problems or hard standards
+violations. Two minor duplication findings were corrected and tests rerun.
