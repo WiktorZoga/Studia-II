@@ -146,103 +146,6 @@ std::vector<const AgentState*> surviving_enemies(
     return enemies;
 }
 
-const AgentState* wettest_enemy(const GameSetup& setup, const TurnState& turn) {
-    const AgentState* target = nullptr;
-    // Preserve initial enemy order when wetness is tied, as in the referee.
-    for (const auto* enemy : surviving_enemies(setup, turn)) {
-        if (target == nullptr || enemy->wetness > target->wetness) {
-            target = enemy;
-        }
-    }
-    return target;
-}
-
-std::vector<const AgentState*> nearby_enemies(
-    const GameSetup& setup, const TurnState& turn, Position position) {
-    auto enemies = surviving_enemies(setup, turn);
-    const auto distance = [position](const AgentState* enemy) {
-        return std::abs(position.x - enemy->x) + std::abs(position.y - enemy->y);
-    };
-    std::stable_sort(enemies.begin(), enemies.end(), [&](const auto* a, const auto* b) {
-        return distance(a) < distance(b);
-    });
-    if (enemies.size() > 2) {
-        enemies.resize(2);
-    }
-    return enemies;
-}
-
-std::optional<Position> best_cover_move(
-    const GameSetup& setup, const TurnState& turn, const AgentState& agent) {
-    const Position current{agent.x, agent.y};
-    const auto enemies = nearby_enemies(setup, turn, current);
-    if (enemies.empty()) {
-        return std::nullopt;
-    }
-    const auto protection = [&](Position position) {
-        int reduction = 100;
-        for (const auto* enemy : enemies) {
-            reduction = std::min(reduction,
-                cover_reduction(setup, {enemy->x, enemy->y}, position));
-        }
-        return reduction;
-    };
-    int best_protection = protection(current);
-    std::optional<Position> destination;
-    for (const auto position : {Position{current.x, current.y - 1},
-                                Position{current.x, current.y + 1},
-                                Position{current.x - 1, current.y},
-                                Position{current.x + 1, current.y}}) {
-        const auto* tile = tile_at(setup, position);
-        if (tile == nullptr || tile->type != 0) {
-            continue;
-        }
-        const bool occupied = std::ranges::any_of(turn.agents, [position](const auto& other) {
-            return other.x == position.x && other.y == position.y;
-        });
-        if (occupied) {
-            continue;
-        }
-        const int candidate_protection = protection(position);
-        if (candidate_protection > best_protection) {
-            best_protection = candidate_protection;
-            destination = position;
-        }
-    }
-    return destination;
-}
-
-const AgentState* least_protected_enemy(
-    const GameSetup& setup, const TurnState& turn,
-    const AgentState& shooter, Position destination) {
-    const auto definition = std::ranges::find(setup.agents, shooter.id, &AgentDefinition::id);
-    if (definition == setup.agents.end()) {
-        return nullptr;
-    }
-    const AgentState* target = nullptr;
-    int best_protection = 101;
-    int best_original_protection = 101;
-    for (const auto* enemy : nearby_enemies(setup, turn, destination)) {
-        const Position enemy_position{enemy->x, enemy->y};
-        const int distance = std::abs(destination.x - enemy->x)
-                           + std::abs(destination.y - enemy->y);
-        if (distance > 2 * definition->optimal_range) {
-            continue;
-        }
-        const int protection = cover_reduction(setup, destination, enemy_position);
-        const int original_protection = cover_reduction(
-            setup, {shooter.x, shooter.y}, enemy_position);
-        if (protection < best_protection
-            || (protection == best_protection
-                && original_protection < best_original_protection)) {
-            target = enemy;
-            best_protection = protection;
-            best_original_protection = original_protection;
-        }
-    }
-    return target;
-}
-
 bool in_blast(Position center, Position position) {
     return std::max(std::abs(center.x - position.x),
                     std::abs(center.y - position.y)) <= 1;
@@ -257,146 +160,254 @@ std::array<Position, 4> adjacent(Position position) {
              {position.x, position.y + 1}, {position.x, position.y - 1}}};
 }
 
-struct BombAction {
+bool same_position(Position a, Position b) {
+    return a.x == b.x && a.y == b.y;
+}
+
+const AgentDefinition& definition_for(const GameSetup& setup, int id) {
+    return *std::ranges::find(setup.agents, id, &AgentDefinition::id);
+}
+
+struct AgentAction {
     Position destination;
+    const AgentState* target = nullptr;
     std::optional<Position> aim;
 };
 
-std::vector<BombAction> plan_bomb_actions(
-    const GameSetup& setup, const TurnState& turn,
-    const std::vector<const AgentState*>& owned) {
+std::vector<Position> legal_positions(
+    const GameSetup& setup, const TurnState& turn, const AgentState& agent,
+    const std::vector<AgentAction>& planned) {
+    std::vector<Position> positions{{agent.x, agent.y}};
+    for (const auto next : adjacent(positions.front())) {
+        const auto* tile = tile_at(setup, next);
+        if (tile == nullptr || tile->type != 0) {
+            continue;
+        }
+        const bool occupied = std::ranges::any_of(turn.agents, [next](const auto& other) {
+            return same_position(next, {other.x, other.y});
+        });
+        const bool reserved = std::ranges::any_of(planned, [next](const auto& action) {
+            return same_position(next, action.destination);
+        });
+        if (!occupied && !reserved) {
+            positions.push_back(next);
+        }
+    }
+    return positions;
+}
+
+// Path distances guide an approach around walls; they are not territory distances.
+std::vector<int> approach_distances(const GameSetup& setup, const TurnState& turn) {
     const int cells = setup.width * setup.height;
     const auto index = [&](Position p) { return p.y * setup.width + p.x; };
-    const auto position = [&](int i) { return Position{i % setup.width, i / setup.width}; };
-    const auto inside = [&](Position p) {
-        return p.x >= 0 && p.y >= 0 && p.x < setup.width && p.y < setup.height;
-    };
-    std::vector<int> terrain(cells, 2), region(cells, -1);
-    for (const auto& tile : setup.tiles) {
-        terrain[index({tile.x, tile.y})] = tile.type;
-    }
-
-    // Flood-fill floor areas through agent cells to identify enclosed bunkers.
-    int region_count = 0;
-    for (int start = 0; start < cells; ++start) {
-        if (terrain[start] != 0 || region[start] != -1) {
-            continue;
-        }
-        std::vector<int> queue{start};
-        region[start] = region_count;
-        for (std::size_t head = 0; head < queue.size(); ++head) {
-            for (const auto next : adjacent(position(queue[head]))) {
-                if (inside(next) && terrain[index(next)] == 0 && region[index(next)] == -1) {
-                    region[index(next)] = region_count;
-                    queue.push_back(index(next));
-                }
-            }
-        }
-        ++region_count;
-    }
-    std::vector<bool> protected_region(region_count, false), claimed(region_count, false);
-    std::vector<BombAction> actions;
-    std::vector<std::size_t> order;
-    for (std::size_t i = 0; i < owned.size(); ++i) {
-        const Position current{owned[i]->x, owned[i]->y};
-        actions.push_back({current, std::nullopt});
-        order.push_back(i);
-        const int area = region[index(current)];
-        if (area >= 0) {
-            protected_region[area] = true;
-        }
-    }
-    std::vector<std::vector<const AgentState*>> groups(region_count);
+    std::vector<int> distance(cells, cells + 1);
+    std::vector<Position> queue;
     for (const auto* enemy : surviving_enemies(setup, turn)) {
-        const int area = region[index({enemy->x, enemy->y})];
-        if (area >= 0 && !protected_region[area]) {
-            groups[area].push_back(enemy);
+        const Position position{enemy->x, enemy->y};
+        distance[index(position)] = 0;
+        queue.push_back(position);
+    }
+    for (std::size_t head = 0; head < queue.size(); ++head) {
+        for (const auto next : adjacent(queue[head])) {
+            const auto* tile = tile_at(setup, next);
+            if (tile == nullptr || tile->type != 0) {
+                continue;
+            }
+            // Influence paths may pass through agents; actual steps cannot.
+            if (distance[index(next)] > distance[index(queue[head])] + 1) {
+                distance[index(next)] = distance[index(queue[head])] + 1;
+                queue.push_back(next);
+            }
         }
     }
-    std::stable_sort(order.begin(), order.end(), [&](auto a, auto b) {
-        return owned[a]->splash_bombs > owned[b]->splash_bombs;
-    });
+    return distance;
+}
 
-    for (const auto actor : order) {
-        if (owned[actor]->splash_bombs <= 0) {
+int shot_damage(
+    const GameSetup& setup, const AgentDefinition& shooter,
+    Position from, Position target, bool hunkered = false) {
+    const int distance = manhattan(from, target);
+    if (distance > 2 * shooter.optimal_range) {
+        return 0;
+    }
+    const int range_factor = distance <= shooter.optimal_range ? 2 : 1;
+    const int protection = cover_reduction(setup, from, target) + (hunkered ? 25 : 0);
+    // Integer form of the referee's positive Math.round(power * range * protection).
+    return (shooter.soaking_power * range_factor * (100 - protection) + 100) / 200;
+}
+
+int attack_benefit(int damage, int wetness) {
+    const int remaining = std::max(0, 100 - wetness);
+    if (remaining == 0 || damage == 0) {
+        return 0;
+    }
+    return std::min(damage, remaining) + (damage >= remaining ? 20 : 0);
+}
+
+struct ShotChoice {
+    const AgentState* target = nullptr;
+    int benefit = 0;
+};
+
+ShotChoice best_shot(
+    const GameSetup& setup, const TurnState& turn,
+    const AgentState& agent, Position position) {
+    ShotChoice best;
+    if (agent.cooldown != 0) {
+        return best;
+    }
+    const auto& definition = definition_for(setup, agent.id);
+    for (const auto* enemy : surviving_enemies(setup, turn)) {
+        const int damage = shot_damage(setup, definition, position, {enemy->x, enemy->y});
+        const int benefit = attack_benefit(damage, enemy->wetness);
+        if (benefit > best.benefit) {
+            best = {enemy, benefit};
+        }
+    }
+    return best;
+}
+
+struct Exposure {
+    int damage = 0;
+    int hunkered_damage = 0;
+
+    int defense_benefit() const { return damage - hunkered_damage; }
+};
+
+Exposure shooting_exposure(const GameSetup& setup, const TurnState& turn, Position position) {
+    Exposure exposure;
+    // Enemy moves/hunkering are not observable. Use their current positions;
+    // include every ready shooter even if our planned attack could be lethal.
+    for (const auto* enemy : surviving_enemies(setup, turn)) {
+        if (enemy->cooldown != 0) {
             continue;
         }
-        std::vector<bool> blocked(cells, false);
-        for (const auto& agent : turn.agents) {
-            blocked[index({agent.x, agent.y})] = true;
-        }
-        for (const auto& action : actions) {
-            blocked[index(action.destination)] = true;
-            if (action.aim) {
-                for (int cell = 0; cell < cells; ++cell) {
-                    if (in_blast(*action.aim, position(cell))) {
-                        blocked[cell] = true;
-                    }
-                }
-            }
-        }
-        const int start = index(actions[actor].destination);
-        std::vector<int> distance(cells, -1), first_step(cells, start), queue{start};
-        distance[start] = 0;
-        for (std::size_t head = 0; head < queue.size(); ++head) {
-            const int current = queue[head];
-            for (const auto next : adjacent(position(current))) {
-                if (!inside(next)) {
-                    continue;
-                }
-                const int cell = index(next);
-                if (terrain[cell] == 0 && !blocked[cell] && distance[cell] == -1) {
-                    distance[cell] = distance[current] + 1;
-                    first_step[cell] = current == start ? cell : first_step[current];
-                    queue.push_back(cell);
-                }
-            }
-        }
+        const auto& definition = definition_for(setup, enemy->id);
+        exposure.damage += shot_damage(setup, definition, {enemy->x, enemy->y}, position);
+        exposure.hunkered_damage += shot_damage(setup, definition, {enemy->x, enemy->y}, position, true);
+    }
+    return exposure;
+}
 
-        int best_steps = cells + 1, best_area = -1, firing_cell = start;
-        Position best_aim{};
-        for (int area = 0; area < region_count; ++area) {
-            if (claimed[area] || groups[area].empty()) {
-                continue;
-            }
-            int needed = 0;
-            for (const auto* enemy : groups[area]) {
-                needed = std::max(needed, (100 - enemy->wetness + 29) / 30);
-            }
-            if (needed > owned[actor]->splash_bombs) {
-                continue;
-            }
-            for (int aim_cell = 0; aim_cell < cells; ++aim_cell) {
-                const Position aim = position(aim_cell);
-                if (!std::ranges::all_of(groups[area], [aim](const auto* enemy) {
-                        return in_blast(aim, {enemy->x, enemy->y});
-                    })) {
-                    continue;
-                }
-                const bool ally_nearby = std::ranges::any_of(order, [&](auto other) {
-                    return other != actor && in_blast(aim, actions[other].destination);
-                });
-                if (ally_nearby) {
-                    continue;
-                }
-                for (const int cell : queue) {
-                    const Position firing = position(cell);
-                    if (distance[cell] < best_steps && manhattan(firing, aim) <= 4
-                        && !in_blast(aim, firing)) {
-                        best_steps = distance[cell];
-                        best_area = area;
-                        firing_cell = cell;
-                        best_aim = aim;
-                    }
-                }
+int territory_advantage(
+    const GameSetup& setup, const TurnState& projected, int moving_id, Position candidate) {
+    int advantage = 0;
+    for (const auto& tile : setup.tiles) {
+        int friendly = 10000, enemy = 10000;
+        for (const auto& agent : projected.agents) {
+            const Position position = agent.id == moving_id ? candidate : Position{agent.x, agent.y};
+            const int distance = manhattan(position, {tile.x, tile.y})
+                               * (agent.wetness >= 50 ? 2 : 1);
+            if (definition_for(setup, agent.id).player_id == setup.my_id) {
+                friendly = std::min(friendly, distance);
+            } else {
+                enemy = std::min(enemy, distance);
             }
         }
-        if (best_area >= 0) {
-            claimed[best_area] = true;
-            actions[actor].destination = position(first_step[firing_cell]);
-            if (best_steps <= 1) {
-                actions[actor].aim = best_aim;
+        advantage += (friendly < enemy) - (enemy < friendly);
+    }
+    return advantage;
+}
+
+struct SplashChoice {
+    std::optional<Position> aim;
+    int benefit = 0;
+};
+
+SplashChoice best_splash(
+    const GameSetup& setup, const TurnState& anticipated, const AgentState& agent,
+    Position from, const std::vector<const AgentState*>& owned,
+    const std::vector<AgentAction>& actions) {
+    SplashChoice best;
+    if (agent.splash_bombs <= 0) {
+        return best;
+    }
+    for (const auto& tile : setup.tiles) {
+        const Position aim{tile.x, tile.y};
+        if (manhattan(from, aim) > 4) {
+            continue;
+        }
+        bool friendly_hit = false;
+        for (std::size_t i = 0; i < owned.size(); ++i) {
+            // Protect both the planned destination and the old cell in case
+            // simultaneous opponent movement causes a move to be cancelled.
+            if (in_blast(aim, actions[i].destination)
+                || in_blast(aim, {owned[i]->x, owned[i]->y})) {
+                friendly_hit = true;
+                break;
             }
+        }
+        if (friendly_hit) {
+            continue;
+        }
+        int benefit = 0;
+        for (const auto* enemy : surviving_enemies(setup, anticipated)) {
+            if (in_blast(aim, {enemy->x, enemy->y})) {
+                benefit += attack_benefit(30, enemy->wetness);
+            }
+        }
+        if (benefit > best.benefit) {
+            best = {aim, benefit};
+        }
+    }
+    return best;
+}
+
+std::vector<AgentAction> plan_actions(
+    const GameSetup& setup, const TurnState& turn,
+    const std::vector<const AgentState*>& owned) {
+    std::vector<AgentAction> actions;
+    TurnState projected = turn;
+    const auto distances = approach_distances(setup, turn);
+    const auto distance = [&](Position p) { return distances[p.y * setup.width + p.x]; };
+    for (const auto* agent : owned) {
+        Position destination{agent->x, agent->y};
+        const auto value_at = [&](Position candidate) {
+            const auto shot = best_shot(setup, turn, *agent, candidate);
+            const auto exposure = shooting_exposure(setup, turn, candidate);
+            // A deliberately simple baseline: balance tile advantage against
+            // twice the useful damage dealt or avoided, minus incoming damage.
+            return territory_advantage(setup, projected, agent->id, candidate)
+                 + 2 * (std::max(shot.benefit, exposure.defense_benefit()) - exposure.damage);
+        };
+        int best_value = value_at(destination);
+        for (const auto candidate : legal_positions(setup, turn, *agent, actions)) {
+            const int value = value_at(candidate);
+            if (value > best_value || (value == best_value && distance(candidate) < distance(destination))) {
+                destination = candidate;
+                best_value = value;
+            }
+        }
+        auto& moved = *std::ranges::find(projected.agents, agent->id, &AgentState::id);
+        moved.x = destination.x;
+        moved.y = destination.y;
+        actions.push_back({destination, nullptr, std::nullopt});
+    }
+
+    // Fix all team destinations before choosing blasts. Nothing moves into a
+    // previously selected blast later in this plan; these plans reset each turn.
+    TurnState anticipated = turn;
+    for (std::size_t i = 0; i < owned.size(); ++i) {
+        const auto& agent = *owned[i];
+        auto& action = actions[i];
+        const auto shot = best_shot(setup, anticipated, agent, action.destination);
+        const auto exposure = shooting_exposure(setup, turn, action.destination);
+        const auto splash = best_splash(setup, anticipated, agent, action.destination, owned, actions);
+        if (splash.benefit > std::max(shot.benefit, exposure.defense_benefit())) {
+            action.aim = splash.aim;
+            for (auto& enemy : anticipated.agents) {
+                if (definition_for(setup, enemy.id).player_id != setup.my_id
+                    && in_blast(*action.aim, {enemy.x, enemy.y})) {
+                    enemy.wetness += 30;
+                }
+            }
+        } else if (shot.benefit > exposure.defense_benefit()) {
+            // Keep the command pointer in the input turn, not the temporary
+            // damage ledger. Future opponent movement/hunkering is uncertain.
+            action.target = &*std::ranges::find(turn.agents, shot.target->id, &AgentState::id);
+            auto& target = *std::ranges::find(anticipated.agents, shot.target->id, &AgentState::id);
+            target.wetness += shot_damage(setup, definition_for(setup, agent.id),
+                                         action.destination, {target.x, target.y});
         }
     }
     return actions;
@@ -411,11 +422,6 @@ int main() {
         std::cerr << "Incomplete or invalid game setup\n";
         return 1;
     }
-    // The bomb tutorial supplies bombs; earlier tutorial setups supply none.
-    const bool bomb_tutorial = std::ranges::any_of(setup.agents, [&](const auto& agent) {
-        return agent.player_id == setup.my_id && agent.initial_splash_bombs > 0;
-    });
-
     std::cerr << "Player " << setup.my_id << ", map " << setup.width << 'x'
               << setup.height << ", tiles " << setup.tiles.size() << '\n';
 
@@ -450,42 +456,19 @@ int main() {
             std::cerr << "Owned agent count does not match the input\n";
             return 1;
         }
-        if (bomb_tutorial) {
-            const auto actions = plan_bomb_actions(setup, turn, owned_agents);
-            for (std::size_t i = 0; i < owned_agents.size(); ++i) {
-                const auto* agent = owned_agents[i];
-                const auto& action = actions[i];
-                const bool moved = action.destination.x != agent->x || action.destination.y != agent->y;
-                std::cout << agent->id << ';';
-                if (moved) {
-                    std::cout << "MOVE " << action.destination.x << ' ' << action.destination.y;
-                }
-                if (action.aim) {
-                    if (moved) {
-                        std::cout << ';';
-                    }
-                    std::cout << "THROW " << action.aim->x << ' ' << action.aim->y;
-                } else if (!moved) {
-                    std::cout << "MESSAGE waiting";
-                }
-                std::cout << '\n';
-            }
-            std::cout.flush();
-            ++turn_number;
-            continue;
-        }
-        const auto* fallback_target = wettest_enemy(setup, turn);
-        for (const auto* agent : owned_agents) {
-            const auto destination = best_cover_move(setup, turn, *agent);
-            const auto* target = destination
-                ? least_protected_enemy(setup, turn, *agent, *destination)
-                : fallback_target;
+        std::ranges::sort(owned_agents, {}, &AgentState::id);
+        const auto actions = plan_actions(setup, turn, owned_agents);
+        for (std::size_t i = 0; i < owned_agents.size(); ++i) {
+            const auto* agent = owned_agents[i];
+            const auto& action = actions[i];
             std::cout << agent->id << ';';
-            if (destination) {
-                std::cout << "MOVE " << destination->x << ' ' << destination->y << ';';
+            if (!same_position(action.destination, {agent->x, agent->y})) {
+                std::cout << "MOVE " << action.destination.x << ' ' << action.destination.y << ';';
             }
-            if (target != nullptr) {
-                std::cout << "SHOOT " << target->id << '\n';
+            if (action.aim) {
+                std::cout << "THROW " << action.aim->x << ' ' << action.aim->y << '\n';
+            } else if (action.target != nullptr) {
+                std::cout << "SHOOT " << action.target->id << '\n';
             } else {
                 std::cout << "HUNKER_DOWN\n";
             }

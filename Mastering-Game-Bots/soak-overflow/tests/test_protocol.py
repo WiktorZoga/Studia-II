@@ -16,11 +16,14 @@ import unittest
 BOT = str(Path(sys.argv.pop(1)).resolve())
 
 
-def setup_input(definitions, width=8, height=5, covers=None, optimal_range=5, bombs=None):
-    rows = ["0", str(len(definitions))]
+def setup_input(definitions, width=8, height=5, covers=None, optimal_range=5, bombs=None,
+                player_id=0, attributes=None):
+    rows = [str(player_id), str(len(definitions))]
     bombs = bombs or {}
-    rows.extend(f"{agent_id} {player} 0 {optimal_range} 20 {bombs.get(agent_id, 0)}"
-                for agent_id, player in definitions)
+    attributes = attributes or {}
+    for agent_id, player in definitions:
+        cooldown, distance, power = attributes.get(agent_id, (0, optimal_range, 20))
+        rows.append(f"{agent_id} {player} {cooldown} {distance} {power} {bombs.get(agent_id, 0)}")
     rows.append(f"{width} {height}")
     covers = covers or {}
     rows.extend(f"{x} {y} {covers.get((x, y), 0)}"
@@ -90,8 +93,9 @@ def bomb_tutorial_fixture(seed):
     return width, covers, definitions, states, goals, mixed
 
 
-class ProtocolTest(unittest.TestCase):
-    def start_bot(self, definitions, width=8, height=5, covers=None, optimal_range=5, bombs=None):
+class BotProcess(unittest.TestCase):
+    def start_bot(self, definitions, width=8, height=5, covers=None, optimal_range=5, bombs=None,
+                  player_id=0, attributes=None):
         self.diagnostics = tempfile.TemporaryFile()
         self.process = subprocess.Popen(
             [BOT], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -99,7 +103,8 @@ class ProtocolTest(unittest.TestCase):
         )
         self.pending_output = b""
         self.addCleanup(self.stop_bot, self.process, self.diagnostics)
-        self.send(setup_input(definitions, width, height, covers, optimal_range, bombs))
+        self.send(setup_input(definitions, width, height, covers, optimal_range, bombs,
+                              player_id, attributes))
 
     def stop_bot(self, process=None, diagnostics=None):
         process = process or self.process
@@ -139,6 +144,9 @@ class ProtocolTest(unittest.TestCase):
             self.pending_output += chunk
         self.assertEqual(self.pending_output, b"", "Unexpected extra stdout")
         return lines
+
+class ProtocolTest(BotProcess):
+    """Historical tutorial strategy expectations; not the active Bronze policy."""
 
     def test_outputs_two_shoot_commands_without_waiting_for_eof(self):
         self.start_bot([(1, 0), (2, 0), (3, 1), (4, 1)])

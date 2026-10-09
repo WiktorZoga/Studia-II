@@ -17,6 +17,6 @@ if(BUILD_TESTING)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     add_test(NAME codingame_protocol
         COMMAND ${Python3_EXECUTABLE}
-            ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_protocol.py $<TARGET_FILE:bot>
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_bronze.py $<TARGET_FILE:bot>
     )
 endif()
