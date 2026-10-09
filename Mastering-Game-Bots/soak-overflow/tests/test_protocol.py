@@ -3,6 +3,7 @@
 from pathlib import Path
 import itertools
 import os
+import random
 import select
 import subprocess
 import sys
@@ -14,9 +15,11 @@ import unittest
 BOT = str(Path(sys.argv.pop(1)).resolve())
 
 
-def setup_input(definitions, width=8, height=5, covers=None, optimal_range=5):
+def setup_input(definitions, width=8, height=5, covers=None, optimal_range=5, bombs=None):
     rows = ["0", str(len(definitions))]
-    rows.extend(f"{agent_id} {player} 0 {optimal_range} 20 0" for agent_id, player in definitions)
+    bombs = bombs or {}
+    rows.extend(f"{agent_id} {player} 0 {optimal_range} 20 {bombs.get(agent_id, 0)}"
+                for agent_id, player in definitions)
     rows.append(f"{width} {height}")
     covers = covers or {}
     rows.extend(f"{x} {y} {covers.get((x, y), 0)}"
@@ -36,8 +39,44 @@ def basic_cover_layout():
             (3, 1): 1, (3, 3): 2, (9, 1): 2, (9, 3): 1}
 
 
+def bomb_tutorial_fixture(seed):
+    """Construct board variations from the official tutorial's documented setup."""
+    rng = random.Random(seed)
+    width = rng.choice((15, 17))
+    mobile, trapped = rng.choice(((1, 2), (2, 1)))
+    definitions = [(mobile, 0), (trapped, 0)]
+    states = {mobile: [0, width // 2, 6, 3, 70]}
+    covers, goals, mixed = {}, set(), set()
+    counts = [rng.randint(5, 7), rng.randint(4, 6), 7, rng.randint(7, 10)]
+    rng.shuffle(counts)
+    trapped_group = min(range(4), key=lambda i: (counts[i], -i))
+    next_id = 3
+    for group, count in enumerate(counts):
+        center_x, center_y = 2 + (width - 5) * (group // 2), 2 + 7 * (group % 2)
+        xs, ys = list(range(-2, 3)), list(range(-2, 3))
+        rng.shuffle(xs)
+        rng.shuffle(ys)
+        trapped_placed = False
+        for dx in xs:
+            for dy in ys:
+                x, y = center_x + dx, center_y + dy
+                if abs(dx) == 2 or abs(dy) == 2:
+                    covers[(x, y)] = 2
+                elif count > 0:
+                    if group == trapped_group and not trapped_placed:
+                        states[trapped] = [0, x, y, 1, 70]
+                        trapped_placed = True
+                    else:
+                        states[next_id] = [1, x, y, 0, 70]
+                        definitions.append((next_id, 1))
+                        (mixed if group == trapped_group else goals).add(next_id)
+                        next_id += 1
+                        count -= 1
+    return width, covers, definitions, states, goals, mixed
+
+
 class ProtocolTest(unittest.TestCase):
-    def start_bot(self, definitions, width=8, height=5, covers=None, optimal_range=5):
+    def start_bot(self, definitions, width=8, height=5, covers=None, optimal_range=5, bombs=None):
         self.diagnostics = tempfile.TemporaryFile()
         self.process = subprocess.Popen(
             [BOT], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -45,7 +84,7 @@ class ProtocolTest(unittest.TestCase):
         )
         self.pending_output = b""
         self.addCleanup(self.stop_bot, self.process, self.diagnostics)
-        self.send(setup_input(definitions, width, height, covers, optimal_range))
+        self.send(setup_input(definitions, width, height, covers, optimal_range, bombs))
 
     def stop_bot(self, process=None, diagnostics=None):
         process = process or self.process
@@ -226,6 +265,119 @@ class ProtocolTest(unittest.TestCase):
         self.send(turn_input([(1, 0, 2, 0, 0, 0),
                               (3, 4, 1, 0, 0, 0), (4, 4, 3, 0, 0, 90)], 1))
         self.assertEqual(self.commands(1), ["1;MOVE 0 1;SHOOT 3"])
+
+    def test_bomb_throw_clears_a_barricaded_group_without_shooting(self):
+        covers = {(x, y): 2 for y in range(1, 6) for x in range(4, 9)
+                  if x in (4, 8) or y in (1, 5)}
+        self.start_bot([(1, 0), (3, 1), (4, 1), (5, 1), (6, 1)],
+                       width=9, height=7, covers=covers, bombs={1: 3})
+        self.send(turn_input([
+            (1, 2, 3, 0, 3, 70), (3, 5, 2, 0, 0, 70),
+            (4, 7, 2, 0, 0, 70), (5, 5, 4, 0, 0, 70), (6, 7, 4, 0, 0, 70),
+        ], 1))
+        self.assertEqual(self.commands(1), ["1;THROW 6 3"])
+
+    def test_bomb_agent_moves_into_range_before_throwing(self):
+        covers = {(x, y): 2 for y in range(1, 6) for x in range(4, 9)
+                  if x in (4, 8) or y in (1, 5)}
+        self.start_bot([(1, 0), (3, 1), (4, 1), (5, 1), (6, 1)],
+                       width=9, height=7, covers=covers, bombs={1: 3})
+        self.send(turn_input([
+            (1, 1, 3, 0, 3, 70), (3, 5, 2, 0, 0, 70),
+            (4, 7, 2, 0, 0, 70), (5, 5, 4, 0, 0, 70), (6, 7, 4, 0, 0, 70),
+        ], 1))
+        self.assertEqual(self.commands(1), ["1;MOVE 2 3;THROW 6 3"])
+
+    def test_bombs_do_not_target_the_mixed_friendly_group(self):
+        covers = {(x, y): 2 for y in range(1, 6) for x in range(4, 9)
+                  if x in (4, 8) or y in (1, 5)}
+        self.start_bot([(1, 0), (2, 0), (3, 1), (4, 1), (5, 1)],
+                       width=9, height=7, covers=covers, bombs={1: 3, 2: 1})
+        self.send(turn_input([
+            (1, 2, 3, 0, 3, 70), (2, 7, 4, 0, 1, 70),
+            (3, 5, 2, 0, 0, 70), (4, 7, 2, 0, 0, 70), (5, 5, 4, 0, 0, 70),
+        ], 2))
+        self.assertEqual(self.commands(2), ["1;MESSAGE waiting", "2;MESSAGE waiting"])
+
+    def test_bombs_are_not_duplicated_and_zero_inventory_is_respected(self):
+        covers = {(x, y): 2 for y in range(1, 6) for x in range(4, 9)
+                  if x in (4, 8) or y in (1, 5)}
+        self.start_bot([(1, 0), (2, 0), (3, 1), (4, 1), (5, 1), (6, 1)],
+                       width=9, height=7, covers=covers, bombs={1: 3, 2: 1})
+        states = [(1, 2, 3, 0, 3, 70), (2, 2, 2, 0, 1, 70),
+                  (3, 5, 2, 0, 0, 70), (4, 7, 2, 0, 0, 70),
+                  (5, 5, 4, 0, 0, 70), (6, 7, 4, 0, 0, 70)]
+        self.send(turn_input(states, 2))
+        self.assertEqual(self.commands(2), ["1;THROW 6 3", "2;MESSAGE waiting"])
+        self.send(turn_input([(1, 2, 3, 0, 0, 70), (2, 2, 2, 0, 0, 70)] + states[2:], 2))
+        self.assertEqual(self.commands(2), ["1;MESSAGE waiting", "2;MESSAGE waiting"])
+
+    def test_bomb_tutorial_replays_clear_three_groups_safely(self):
+        # This checks only the tutorial's movement, blast, and inventory rules.
+        # It is a scripted replay through stdin/stdout, not a full game engine.
+        for seed in range(64):
+            width, covers, definitions, states, goals, mixed = bomb_tutorial_fixture(seed)
+            bombs = {agent_id: state[3] for agent_id, state in states.items() if state[0] == 0}
+            with self.subTest(seed=seed):
+                self.start_bot(definitions, width=width, height=12,
+                               covers=covers, optimal_range=1, bombs=bombs)
+                try:
+                    for turn in range(39):
+                        owned = {i for i, state in states.items() if state[0] == 0}
+                        ids = list(states)
+                        random.Random(seed + turn).shuffle(ids)
+                        self.send(turn_input([
+                            (i, states[i][1], states[i][2], 0, states[i][3], states[i][4])
+                            for i in ids
+                        ], len(owned)))
+                        lines = self.commands(len(owned))
+                        old_positions = {i: tuple(s[1:3]) for i, s in states.items()}
+                        destinations, throws, commanded = {}, [], set()
+                        for line in lines:
+                            tokens = line.split(";")
+                            agent_id = int(tokens[0])
+                            self.assertIn(agent_id, owned)
+                            self.assertNotIn(agent_id, commanded)
+                            commanded.add(agent_id)
+                            for token in tokens[1:]:
+                                parts = token.split()
+                                self.assertIn(parts[0], ("MOVE", "THROW", "MESSAGE"))
+                                if parts[0] == "MOVE":
+                                    self.assertFalse(any(i == agent_id for i, _ in throws))
+                                    x, y = map(int, parts[1:])
+                                    old_x, old_y = old_positions[agent_id]
+                                    self.assertEqual(abs(x - old_x) + abs(y - old_y), 1)
+                                    self.assertTrue(0 <= x < width and 0 <= y < 12)
+                                    self.assertEqual(covers.get((x, y), 0), 0)
+                                    self.assertNotIn((x, y), [p for i, p in old_positions.items()
+                                                            if i != agent_id])
+                                    destinations[agent_id] = (x, y)
+                                elif parts[0] == "THROW":
+                                    throws.append((agent_id, tuple(map(int, parts[1:]))))
+                        self.assertEqual(commanded, owned)
+                        for i, destination in destinations.items():
+                            states[i][1:3] = destination
+                        self.assertEqual(len({tuple(states[i][1:3]) for i in owned}), len(owned))
+                        for i, (x, y) in throws:
+                            self.assertGreater(states[i][3], 0)
+                            self.assertTrue(0 <= x < width and 0 <= y < 12)
+                            self.assertLessEqual(abs(x - states[i][1]) + abs(y - states[i][2]), 4)
+                            for friendly in owned:
+                                self.assertGreater(max(abs(x - states[friendly][1]),
+                                                       abs(y - states[friendly][2])), 1)
+                            states[i][3] -= 1
+                            for state in states.values():
+                                if max(abs(x - state[1]), abs(y - state[2])) <= 1:
+                                    state[4] += 30
+                        states = {i: s for i, s in states.items() if s[4] < 100}
+                        self.assertTrue(owned.issubset(states))
+                        self.assertTrue(mixed.issubset(states))
+                        if not goals.intersection(states):
+                            break
+                    else:
+                        self.fail("Enemy-only groups were not cleared before the tutorial deadline")
+                finally:
+                    self.stop_bot()
 
 
 if __name__ == "__main__":
