@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
+#include <optional>
 #include <vector>
 
 struct AgentDefinition {
@@ -145,6 +146,97 @@ const AgentState* wettest_enemy(const GameSetup& setup, const TurnState& turn) {
     return target;
 }
 
+std::vector<const AgentState*> nearby_enemies(
+    const GameSetup& setup, const TurnState& turn, Position position) {
+    std::vector<const AgentState*> enemies;
+    for (const auto& definition : setup.agents) {
+        if (definition.player_id == setup.my_id) {
+            continue;
+        }
+        const auto enemy = std::ranges::find(turn.agents, definition.id, &AgentState::id);
+        if (enemy != turn.agents.end()) {
+            enemies.push_back(&*enemy);
+        }
+    }
+    const auto distance = [position](const AgentState* enemy) {
+        return std::abs(position.x - enemy->x) + std::abs(position.y - enemy->y);
+    };
+    std::stable_sort(enemies.begin(), enemies.end(), [&](const auto* a, const auto* b) {
+        return distance(a) < distance(b);
+    });
+    if (enemies.size() > 2) {
+        enemies.resize(2);
+    }
+    return enemies;
+}
+
+std::optional<Position> best_cover_move(
+    const GameSetup& setup, const TurnState& turn, const AgentState& agent) {
+    const Position current{agent.x, agent.y};
+    const auto enemies = nearby_enemies(setup, turn, current);
+    if (enemies.empty()) {
+        return std::nullopt;
+    }
+    const auto protection = [&](Position position) {
+        int reduction = 100;
+        for (const auto* enemy : enemies) {
+            reduction = std::min(reduction,
+                cover_reduction(setup, {enemy->x, enemy->y}, position));
+        }
+        return reduction;
+    };
+    int best_protection = protection(current);
+    std::optional<Position> destination;
+    for (const auto position : {Position{current.x, current.y - 1},
+                                Position{current.x, current.y + 1},
+                                Position{current.x - 1, current.y},
+                                Position{current.x + 1, current.y}}) {
+        const auto* tile = tile_at(setup, position);
+        if (tile == nullptr || tile->type != 0) {
+            continue;
+        }
+        const bool occupied = std::ranges::any_of(turn.agents, [position](const auto& other) {
+            return other.x == position.x && other.y == position.y;
+        });
+        if (!occupied && protection(position) > best_protection) {
+            best_protection = protection(position);
+            destination = position;
+        }
+    }
+    return destination;
+}
+
+const AgentState* least_protected_enemy(
+    const GameSetup& setup, const TurnState& turn,
+    const AgentState& shooter, Position destination) {
+    const auto definition = std::ranges::find(setup.agents, shooter.id, &AgentDefinition::id);
+    if (definition == setup.agents.end()) {
+        return nullptr;
+    }
+    const AgentState* target = nullptr;
+    int best_protection = 101;
+    int best_original_protection = 101;
+    for (const auto* enemy : nearby_enemies(setup, turn, destination)) {
+        const Position enemy_position{enemy->x, enemy->y};
+        const int distance = std::abs(destination.x - enemy->x)
+                           + std::abs(destination.y - enemy->y);
+        if (distance > 2 * definition->optimal_range) {
+            continue;
+        }
+        const int protection = cover_reduction(setup, destination, enemy_position);
+        const int original_protection = cover_reduction(
+            setup, {shooter.x, shooter.y}, enemy_position);
+        if (protection < best_protection
+            || (protection == best_protection
+                && original_protection < best_original_protection)) {
+            target = enemy;
+            best_protection = protection;
+            best_original_protection = original_protection;
+        }
+    }
+    return target;
+}
+
 int main() {
     std::ios::sync_with_stdio(false);
     std::cin.tie(nullptr);
@@ -189,9 +281,16 @@ int main() {
             std::cerr << "Owned agent count does not match the input\n";
             return 1;
         }
-        const auto* target = wettest_enemy(setup, turn);
+        const auto* fallback_target = wettest_enemy(setup, turn);
         for (const auto* agent : owned_agents) {
+            const auto destination = best_cover_move(setup, turn, *agent);
+            const auto* target = destination
+                ? least_protected_enemy(setup, turn, *agent, *destination)
+                : fallback_target;
             std::cout << agent->id << ';';
+            if (destination) {
+                std::cout << "MOVE " << destination->x << ' ' << destination->y << ';';
+            }
             if (target != nullptr) {
                 std::cout << "SHOOT " << target->id << '\n';
             } else {

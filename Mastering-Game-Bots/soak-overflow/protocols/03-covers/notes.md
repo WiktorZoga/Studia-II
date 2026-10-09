@@ -52,7 +52,14 @@ reduction percentage (0, 50, or 75). Position arguments to cover evaluation
 must be valid map coordinates. Tests cover map ordering/edges, cover levels,
 incoming directions, shared-cover exceptions, and strongest-cover selection.
 
-The bot's decision policy still implements the previous shooting tutorial.
-Movement/target selection, combined commands, and platform completion of the
-covers objective are later milestones in the
-[small-step plan](../../../.scratch/covers/plan.md).
+The bot now examines empty, unoccupied neighboring tiles and chooses improved
+protection against its two nearby enemies. It then selects a nearby enemy from
+the destination, favoring less protection and respecting shooting range.
+If decorative cover ties the post-move reductions, original-position protection
+breaks the tie consistently with the tutorial's intended enemy.
+
+Combined `MOVE;SHOOT` output passes local checks across 64 cover/layout
+combinations, with ID ordering, occupancy, map blockage, and shooting range
+checks. Floor-only scenarios retain the earlier shooting behavior.
+The [spec and tickets](../../../.scratch/covers-league/README.md) record the
+implemented steps. Platform completion and subsequent promotion remain pending.
