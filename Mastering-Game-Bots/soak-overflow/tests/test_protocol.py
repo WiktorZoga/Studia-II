@@ -1,6 +1,7 @@
 """Exercise the bot through the same stdin/stdout boundary as CodinGame."""
 
 from pathlib import Path
+from dataclasses import dataclass
 import itertools
 import os
 import random
@@ -39,13 +40,27 @@ def basic_cover_layout():
             (3, 1): 1, (3, 3): 2, (9, 1): 2, (9, 3): 1}
 
 
+def single_bunker_layout():
+    return {(x, y): 2 for y in range(1, 6) for x in range(4, 9)
+            if x in (4, 8) or y in (1, 5)}
+
+
+@dataclass
+class ReplayAgent:
+    player: int
+    x: int
+    y: int
+    bombs: int
+    wetness: int = 70
+
+
 def bomb_tutorial_fixture(seed):
     """Construct board variations from the official tutorial's documented setup."""
     rng = random.Random(seed)
     width = rng.choice((15, 17))
     mobile, trapped = rng.choice(((1, 2), (2, 1)))
     definitions = [(mobile, 0), (trapped, 0)]
-    states = {mobile: [0, width // 2, 6, 3, 70]}
+    states = {mobile: ReplayAgent(0, width // 2, 6, 3)}
     covers, goals, mixed = {}, set(), set()
     counts = [rng.randint(5, 7), rng.randint(4, 6), 7, rng.randint(7, 10)]
     rng.shuffle(counts)
@@ -64,10 +79,10 @@ def bomb_tutorial_fixture(seed):
                     covers[(x, y)] = 2
                 elif count > 0:
                     if group == trapped_group and not trapped_placed:
-                        states[trapped] = [0, x, y, 1, 70]
+                        states[trapped] = ReplayAgent(0, x, y, 1)
                         trapped_placed = True
                     else:
-                        states[next_id] = [1, x, y, 0, 70]
+                        states[next_id] = ReplayAgent(1, x, y, 0)
                         definitions.append((next_id, 1))
                         (mixed if group == trapped_group else goals).add(next_id)
                         next_id += 1
@@ -267,8 +282,7 @@ class ProtocolTest(unittest.TestCase):
         self.assertEqual(self.commands(1), ["1;MOVE 0 1;SHOOT 3"])
 
     def test_bomb_throw_clears_a_barricaded_group_without_shooting(self):
-        covers = {(x, y): 2 for y in range(1, 6) for x in range(4, 9)
-                  if x in (4, 8) or y in (1, 5)}
+        covers = single_bunker_layout()
         self.start_bot([(1, 0), (3, 1), (4, 1), (5, 1), (6, 1)],
                        width=9, height=7, covers=covers, bombs={1: 3})
         self.send(turn_input([
@@ -278,8 +292,7 @@ class ProtocolTest(unittest.TestCase):
         self.assertEqual(self.commands(1), ["1;THROW 6 3"])
 
     def test_bomb_agent_moves_into_range_before_throwing(self):
-        covers = {(x, y): 2 for y in range(1, 6) for x in range(4, 9)
-                  if x in (4, 8) or y in (1, 5)}
+        covers = single_bunker_layout()
         self.start_bot([(1, 0), (3, 1), (4, 1), (5, 1), (6, 1)],
                        width=9, height=7, covers=covers, bombs={1: 3})
         self.send(turn_input([
@@ -289,8 +302,7 @@ class ProtocolTest(unittest.TestCase):
         self.assertEqual(self.commands(1), ["1;MOVE 2 3;THROW 6 3"])
 
     def test_bombs_do_not_target_the_mixed_friendly_group(self):
-        covers = {(x, y): 2 for y in range(1, 6) for x in range(4, 9)
-                  if x in (4, 8) or y in (1, 5)}
+        covers = single_bunker_layout()
         self.start_bot([(1, 0), (2, 0), (3, 1), (4, 1), (5, 1)],
                        width=9, height=7, covers=covers, bombs={1: 3, 2: 1})
         self.send(turn_input([
@@ -300,8 +312,7 @@ class ProtocolTest(unittest.TestCase):
         self.assertEqual(self.commands(2), ["1;MESSAGE waiting", "2;MESSAGE waiting"])
 
     def test_bombs_are_not_duplicated_and_zero_inventory_is_respected(self):
-        covers = {(x, y): 2 for y in range(1, 6) for x in range(4, 9)
-                  if x in (4, 8) or y in (1, 5)}
+        covers = single_bunker_layout()
         self.start_bot([(1, 0), (2, 0), (3, 1), (4, 1), (5, 1), (6, 1)],
                        width=9, height=7, covers=covers, bombs={1: 3, 2: 1})
         states = [(1, 2, 3, 0, 3, 70), (2, 2, 2, 0, 1, 70),
@@ -317,21 +328,21 @@ class ProtocolTest(unittest.TestCase):
         # It is a scripted replay through stdin/stdout, not a full game engine.
         for seed in range(64):
             width, covers, definitions, states, goals, mixed = bomb_tutorial_fixture(seed)
-            bombs = {agent_id: state[3] for agent_id, state in states.items() if state[0] == 0}
+            bombs = {agent_id: state.bombs for agent_id, state in states.items() if state.player == 0}
             with self.subTest(seed=seed):
                 self.start_bot(definitions, width=width, height=12,
                                covers=covers, optimal_range=1, bombs=bombs)
                 try:
                     for turn in range(39):
-                        owned = {i for i, state in states.items() if state[0] == 0}
+                        owned = {i for i, state in states.items() if state.player == 0}
                         ids = list(states)
                         random.Random(seed + turn).shuffle(ids)
                         self.send(turn_input([
-                            (i, states[i][1], states[i][2], 0, states[i][3], states[i][4])
+                            (i, states[i].x, states[i].y, 0, states[i].bombs, states[i].wetness)
                             for i in ids
                         ], len(owned)))
                         lines = self.commands(len(owned))
-                        old_positions = {i: tuple(s[1:3]) for i, s in states.items()}
+                        old_positions = {i: (state.x, state.y) for i, state in states.items()}
                         destinations, throws, commanded = {}, [], set()
                         for line in lines:
                             tokens = line.split(";")
@@ -356,20 +367,20 @@ class ProtocolTest(unittest.TestCase):
                                     throws.append((agent_id, tuple(map(int, parts[1:]))))
                         self.assertEqual(commanded, owned)
                         for i, destination in destinations.items():
-                            states[i][1:3] = destination
-                        self.assertEqual(len({tuple(states[i][1:3]) for i in owned}), len(owned))
+                            states[i].x, states[i].y = destination
+                        self.assertEqual(len({(states[i].x, states[i].y) for i in owned}), len(owned))
                         for i, (x, y) in throws:
-                            self.assertGreater(states[i][3], 0)
+                            self.assertGreater(states[i].bombs, 0)
                             self.assertTrue(0 <= x < width and 0 <= y < 12)
-                            self.assertLessEqual(abs(x - states[i][1]) + abs(y - states[i][2]), 4)
+                            self.assertLessEqual(abs(x - states[i].x) + abs(y - states[i].y), 4)
                             for friendly in owned:
-                                self.assertGreater(max(abs(x - states[friendly][1]),
-                                                       abs(y - states[friendly][2])), 1)
-                            states[i][3] -= 1
+                                self.assertGreater(max(abs(x - states[friendly].x),
+                                                       abs(y - states[friendly].y)), 1)
+                            states[i].bombs -= 1
                             for state in states.values():
-                                if max(abs(x - state[1]), abs(y - state[2])) <= 1:
-                                    state[4] += 30
-                        states = {i: s for i, s in states.items() if s[4] < 100}
+                                if max(abs(x - state.x), abs(y - state.y)) <= 1:
+                                    state.wetness += 30
+                        states = {i: state for i, state in states.items() if state.wetness < 100}
                         self.assertTrue(owned.issubset(states))
                         self.assertTrue(mixed.issubset(states))
                         if not goals.intersection(states):

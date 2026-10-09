@@ -20,3 +20,6 @@ is not a complete game engine. Earlier cover and output checks still pass.
 
 Copy only the current `soak-overflow/main.cpp` into the CodinGame C++20 editor.
 Platform completion and promotion remain pending until the student's test run.
+
+The [two-axis review](review.md) found no specification problems or hard
+standards violations. Two minor test-fixture findings were corrected.

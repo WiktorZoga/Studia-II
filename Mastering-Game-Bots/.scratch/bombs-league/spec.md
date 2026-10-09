@@ -2,6 +2,7 @@
 
 Category: enhancement
 Status: ready-for-agent
+Resolution: completed
 
 ## Problem Statement
 
