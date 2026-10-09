@@ -25,7 +25,7 @@ Later, a Java referee can support local matches and benchmarking if needed.
 
 | Order | Deliverable | Verification | State |
 | --- | --- | --- | --- |
-| 1 | Lookup map tiles and evaluate target cover against a shot | Public helper tests plus existing turn-output checks | Implemented; local checks pass |
+| 1 | Lookup map tiles and evaluate target cover against a shot | Public helper tests plus existing turn-output checks | Complete; checked and reviewed |
 | 2 | Select a reachable protected position and a less-protected target | Worked cover scenarios and combined-command checks | Proposed; depends on 1 |
 | 3 | Produce MOVE and SHOOT in one line per owned agent, then verify covers on the platform | Local output checks, then student's CodinGame run | Proposed; depends on 2 |
 | 4 | Capture the next statement and repeat the comparison/implementation cycle toward Bronze | Versioned statement, stage notes, local tests, platform result | Proposed; depends on promotion |
