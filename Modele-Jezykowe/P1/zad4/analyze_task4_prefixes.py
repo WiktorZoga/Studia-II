@@ -19,7 +19,7 @@ def main():
 
     counts = Counter()
     for question, _ in data:
-        group, _ = get_group(question, trie)
+        group, _ = get_group(question)
         counts[group] += 1
 
     print("\nWybrane grupy:")

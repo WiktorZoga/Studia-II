@@ -1,5 +1,6 @@
+from pathlib import Path
+
 import torch
-import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 MODEL_NAME = "sdadas/polish-gpt2-large"
@@ -33,24 +34,25 @@ def classify_by_loss(review: str) -> str:
     return "pozytywna" if loss_pos < loss_neg else "negatywna"
 
 
-def classify_by_next_token(review: str) -> str:
-    prompt = f"Opinia: \"{review}\"\nOcena:"
-    inputs = tokenizer(prompt, return_tensors="pt").to(device)
-
-    id_pos = tokenizer.encode(" pozytywna")[0]
-    id_neg = tokenizer.encode(" negatywna")[0]
+def get_label_loss(prompt: str, label: str) -> float:
+    context_ids = tokenizer.encode(prompt, add_special_tokens=False)
+    label_ids = tokenizer.encode(" " + label, add_special_tokens=False)
+    input_ids = torch.tensor([context_ids + label_ids], device=device)
+    labels = torch.tensor(
+        [[-100] * len(context_ids) + label_ids], device=device
+    )
 
     with torch.no_grad():
-        outputs = model(**inputs)
-        next_token_logits = outputs.logits[0, -1, :]
-    #     probs = F.softmax(next_token_logits, dim=-1)
+        output = model(input_ids=input_ids, labels=labels)
+    # Suma strat obejmuje całą etykietę, niezależnie od liczby tokenów.
+    return output.loss.item() * len(label_ids)
 
-    #     prob_pos = probs[id_pos].item()
-    #     prob_neg = probs[id_neg].item()
 
-    # return "pozytywna" if prob_pos > prob_neg else "negatywna"
-
-    return "pozytywna" if next_token_logits[id_pos] > next_token_logits[id_neg] else "negatywna"
+def classify_by_label(review: str) -> str:
+    prompt = f"Opinia: \"{review}\"\nOcena:"
+    loss_pos = get_label_loss(prompt, "pozytywna")
+    loss_neg = get_label_loss(prompt, "negatywna")
+    return "pozytywna" if loss_pos < loss_neg else "negatywna"
 
 
 def evaluate(dataset: list[tuple[str, str]], method_func, method_name: str):
@@ -75,7 +77,8 @@ if __name__ == "__main__":
 
     label_mapping = {"GOOD" : "pozytywna", "BAD": "negatywna"}
 
-    with open("reviews_for_task3.txt", "r", encoding="utf-8") as file:
+    reviews_file = Path(__file__).with_name("reviews_for_task3.txt")
+    with reviews_file.open(encoding="utf-8") as file:
         for line in file:
             line = line.strip()
 
@@ -87,4 +90,4 @@ if __name__ == "__main__":
             dataset.append((review, label_mapping[label]))
 
     evaluate(dataset, classify_by_loss, "Metoda 1: Całkowity Loss zdania")
-    evaluate(dataset, classify_by_next_token, "Metoda 2: Logity następnego tokenu")
+    evaluate(dataset, classify_by_label, "Metoda 2: Prawdopodobieństwo całej etykiety")

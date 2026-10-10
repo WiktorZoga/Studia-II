@@ -37,13 +37,3 @@ class QuestionTrie:
 
         visit(self.root, [])
         return sorted(results, key=lambda item: (-item[1], item[0]))
-
-    def match_prefix(self, question, prefixes):
-        words = self.tokenize(question)
-
-        for prefix in sorted(prefixes, key=lambda text: len(text.split()), reverse=True):
-            prefix_words = prefix.split()
-            if words[: len(prefix_words)] == prefix_words:
-                return prefix
-
-        return None

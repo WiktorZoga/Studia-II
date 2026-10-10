@@ -60,7 +60,9 @@ if __name__ == "__main__":
     test_mulisets = [
         ["babuleńka", "miała", "dwa", "rogate", "koziołki"],
         ["wiewiórki", "w", "parku", "zaczepiają", "przechodniów"],
-        ["dzień", "dobry", "która", "jest", "teraz", "godzina"]
+        ["dzień", "dobry", "która", "jest", "teraz", "godzina"],
+        ["kot", "śpi", "na", "kanapie"],
+        ["bardzo", "bardzo", "lubię", "kawę"],
     ]
     for test_words in test_mulisets:
         print('-' * 50)

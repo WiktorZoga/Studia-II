@@ -51,17 +51,15 @@ while True:
         if answer:
             candidates.append(answer)
 
-    longer_candidates = [
-        answer for answer in candidates
-        if len(answer.split()) >= 3
-    ]
-
     TARGET_WORDS = 10
 
     def length_penalty(cand):
         return abs(len(cand.split()) - TARGET_WORDS)
 
-    answer = min(candidates, key=length_penalty)
+    if candidates:
+        answer = min(candidates, key=length_penalty)
+    else:
+        answer = "Możesz powiedzieć coś więcej?"
 
     print(f"Ania: {answer}")
 
