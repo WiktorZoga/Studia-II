@@ -45,10 +45,11 @@ cmake --build build/debug --target lista14_zad2
 | [01](Lista01/)–[05](Lista05/) | Wątki, mutexy, semafory, future i atomiki |
 | [06](Lista06/)–[08](Lista08/) | Model pamięci, synchronizacja, kolejki i bariery |
 | [09](Lista09/)–[12](Lista12/) | Struktury współbieżne i odzyskiwanie pamięci |
-| [13](Lista13/) | Stosy EBR/IBR, historia zbioru i migawki; zadania 1–4 |
-| [14](Lista14/) | Zarządzanie dostępem, silniki zadań, sortowanie i kolejka; zadania 1–5 |
+| 13 — tylko lokalnie | Stosy EBR/IBR, historia zbioru i migawki; zadania 1–4 |
+| 14 — tylko lokalnie | Zarządzanie dostępem, silniki zadań, sortowanie i kolejka; zadania 1–5 |
 
-Testy CTest obejmują cztery zadania listy 13 i pięć zadań listy 14.
+Listy 13 i 14 są tymczasowo wyłączone z publikacji przez `.gitignore`.
+Lokalnie testy CTest obejmują cztery zadania listy 13 i pięć zadań listy 14.
 Zadania 14.6–14.9 nie są zaimplementowane. Pozostałe listy zawierają
 również przykłady i eksperymenty uruchamiane ręcznie. Kompilacja i przejście
 testów nie stanowią dowodu poprawności algorytmów współbieżnych.

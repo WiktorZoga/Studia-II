@@ -1,3 +1,7 @@
+# Local-only exercise sheets
+/Lista13/
+/Lista14/
+
 # CMake and build output
 !CMakePresets.json
 /build/
