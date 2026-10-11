@@ -47,47 +47,47 @@ public:
 };
 
 counting_semaphore sem(3);
-std::mutex cout_mtx;      
-int threads_inside = 0;   
+std::mutex cout_mtx;
+int threads_inside = 0;
 
 void worker(int id) {
     {
         std::lock_guard<std::mutex> lock(cout_mtx);
-        std::cout << "Worker " << id << " czeka na wejście...\n";
+        std::cout << "Worker " << id << " is waiting to enter...\n";
     }
-    
-    sem.acquire(); 
-    
+
+    sem.acquire();
+
     {
         std::lock_guard<std::mutex> lock(cout_mtx);
         threads_inside++;
-        std::cout << "-> Worker " << id << " Wszedł. (W środku jest " << threads_inside << "/3)\n";
+        std::cout << "-> Worker " << id << " Entered. (Threads inside: " << threads_inside << "/3)\n";
     }
-    
+
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    
+
     {
         std::lock_guard<std::mutex> lock(cout_mtx);
         threads_inside--;
-        std::cout << "<- Worker " << id << " Wychodzi.\n";
+        std::cout << "<- Worker " << id << " Leaving.\n";
     }
-    
+
     sem.release();
 }
 
 int main() {
     std::cout << "--- TEST 1: try_acquire ---\n";
-    counting_semaphore test_sem(1); 
-    
+    counting_semaphore test_sem(1);
+
     if (test_sem.try_acquire()) {
-        std::cout << "1. try_acquire zwrocilo TRUE [Było miejsce]\n";
+        std::cout << "1. try_acquire returned TRUE [Space available]\n";
     }
-    
+
     if (!test_sem.try_acquire()) {
-        std::cout << "2. try_acquire zwrocilo FALSE [Nie było miejca]\n";
+        std::cout << "2. try_acquire returned FALSE [No space available]\n";
     }
-    test_sem.release(); 
-    
+    test_sem.release();
+
     std::cout << "\n--- TEST 2:  ---\n";
     std::vector<std::thread> workers;
     int const NUMBER_OF_WORKERS = 10;
@@ -102,6 +102,6 @@ int main() {
         }
     }
 
-    std::cout << "\nWszystkie testy zakonczone\n";
+    std::cout << "\nAll tests finished\n";
     return 0;
 }

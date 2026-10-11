@@ -104,7 +104,7 @@ void consumer() {
 
 int main() {
 
-    std::cout << "Openning the bar!\n";
+    std::cout << "Opening the bar!\n";
 
     std::vector<std::jthread> producers, consumers;
 
@@ -120,7 +120,7 @@ int main() {
         if (consumers[i].joinable()) consumers[i].join();
     }
 
-    std::cout << "Closign the bar\n";
+    std::cout << "Closing the bar\n";
 
     return 0;
 }

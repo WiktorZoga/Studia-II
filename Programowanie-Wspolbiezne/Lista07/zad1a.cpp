@@ -3,6 +3,7 @@
 #include <optional>
 #include <thread>
 #include <mutex>
+#include <vector>
 
 template<typename T>
 class Queue {

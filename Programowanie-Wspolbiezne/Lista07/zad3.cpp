@@ -6,18 +6,18 @@
 #include <chrono>
 
 template<typename T>
-class SeqLock { // będzie szczególnie wydajny gdy będzie dużo czytających a kopiowanie będzie bardzo szybkie
+class SeqLock { // especially efficient with many readers and very fast copying
 private:
-    std::atomic<T> payload; 
+    std::atomic<T> payload;
     std::atomic<size_t> seq{0};
 
 public:
     SeqLock() = default;
 
     // void write(const T& val) {
-    //     seq.fetch_add(1, std::memory_order_acquire);  // bariera acquire nie pozwala na przeniesienie zapisu payloadu przed oznaczenie stanu jako nieparzysty (w trakcie modyfikacji)
-    //     payload.store(val, std::memory_order_relaxed); 
-    //     seq.fetch_add(1, std::memory_order_release); // musimy zapewnić, że dane zostały przeniesione zanim upubliczniliśmy nowy licznik
+    //     seq.fetch_add(1, std::memory_order_acquire);  // the acquire barrier keeps the payload store after marking the state odd (modification in progress)
+    //     payload.store(val, std::memory_order_relaxed);
+    //     seq.fetch_add(1, std::memory_order_release); // ensure the data is stored before publishing the new counter
     // }
 
     void write(const T& val) {
@@ -27,39 +27,39 @@ public:
         std::atomic_thread_fence(std::memory_order_release);
 
         payload.store(val, std::memory_order_relaxed);
-        
+
         seq.store(s + 2, std::memory_order_release);
     }
 
     T read() const {
         while (true) {
-            size_t current_seq = seq.load(std::memory_order_acquire); 
+            size_t current_seq = seq.load(std::memory_order_acquire);
             if (current_seq % 2 == 0) {
                 T result = payload.load(std::memory_order_relaxed);
-                
+
                 std::atomic_thread_fence(std::memory_order_acquire);
-                
-                if (current_seq == seq.load(std::memory_order_relaxed)) { 
+
+                if (current_seq == seq.load(std::memory_order_relaxed)) {
                     return result;
                 }
             }
             std::this_thread::yield();
-        }        
+        }
     }
 
 };
 
-// Struktura testowa ma kilka pól żeby spróbować wykryć błędy w zapisie
+// The test structure has several fields to help detect inconsistent writes
 struct alignas(16) TestData {
     size_t a;
     size_t b;
     size_t c;
 };
 
-// Wymuszenie przez kompilator, by upewnić się, że struktura jest bezpieczna dla Seqlocka
-// Typ musi być trywialnie kopiowalny, aby w przypadku kolizji jedynym problemem były "wymieszane bajty"
-// a nie błedy w alokacji pamięci
-static_assert(std::is_trivially_copyable_v<TestData>, "TestData musi byc trivially copyable!");
+// Compile-time check that the structure meets the SeqLock type requirement
+// The type must be trivially copyable so a collision only risks mixed bytes
+// rather than memory allocation errors
+static_assert(std::is_trivially_copyable_v<TestData>, "TestData must be trivially copyable!");
 
 SeqLock<TestData> global_seqlock;
 std::atomic<size_t> fails_detected{0};
@@ -83,12 +83,12 @@ void reader_task(std::stop_token stoken) {
             local_success_count++;
         }
     }
-    // szybsze i bezpieczniejsze na koniec
+    // update the shared count at the end for speed and safety
     successful_reads.fetch_add(local_success_count, std::memory_order_relaxed);
 }
 
-int main() { // jak w pierwszym w load'zie w read damy relaxed to będa błedy!!!
-    std::cout << "Test SeqLocka...\n";
+int main() { // using relaxed for the first load in read causes failures!
+    std::cout << "Testing SeqLock...\n";
 
     global_seqlock.write({0, 0, 0});
 
@@ -106,9 +106,9 @@ int main() { // jak w pierwszym w load'zie w read damy relaxed to będa błedy!!
         r.request_stop();
     }
 
-    std::cout << "Test zakonczony.\n";
-    std::cout << "Udane: " << successful_reads.load() << "\n";
-    std::cout << "Bledy: " << fails_detected.load() << "\n";
+    std::cout << "Test completed.\n";
+    std::cout << "Successful reads: " << successful_reads.load() << "\n";
+    std::cout << "Failures: " << fails_detected.load() << "\n";
 
     return 0;
 }

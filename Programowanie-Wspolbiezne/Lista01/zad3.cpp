@@ -10,7 +10,7 @@
 
 int const NUMBER_OF_BANK_ACCOUNTS = 700;
 
-int const NUMBER_OF_ACCOUNTANTS = 20; 
+int const NUMBER_OF_ACCOUNTANTS = 20;
 int const NUMBER_OF_READERS = 100;
 
 int const DURATION = 10; // s
@@ -44,7 +44,7 @@ class BankAccount {
         return true;
     }
 
-public:    
+public:
     BankAccount(int _id, int _balance) : id(_id), balance(_balance) {}
 
     int get_id() const {
@@ -172,7 +172,7 @@ int main() {
     std::cout << "Make Market!\n";
 
     for (int i = 0; i < NUMBER_OF_BANK_ACCOUNTS; i++) {
-        accounts.push_back(std::make_unique<BankAccount>(i, STARTING_MONEY)); 
+        accounts.push_back(std::make_unique<BankAccount>(i, STARTING_MONEY));
     }
 
     std::vector<std::thread> accountants, readers;
@@ -208,7 +208,7 @@ int main() {
     }
 
     std::cout << "Close Market!\n";
-    
+
     std::cout << ((sum == expected_sum) ? "Everything fine\n" : "Some money lost!!!\n");
 
     return 0;

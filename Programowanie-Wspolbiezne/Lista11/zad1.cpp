@@ -33,7 +33,7 @@ public:
 
     LazyList() {
         Node* dummy = new Node();
-        head.store(dummy); 
+        head.store(dummy);
     }
 
     LazyList(const LazyList&) = delete;
@@ -118,7 +118,7 @@ private:
         return !last->mark.load() && last->next.load() == nullptr;
     }
 
-    bool validate(Node* pred, Node* curr) { 
+    bool validate(Node* pred, Node* curr) {
         return !pred->mark.load() && !curr->mark.load() && pred->next.load() == curr;
     }
 };

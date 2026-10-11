@@ -14,7 +14,7 @@ template<typename T>
 class Queue {
     struct Node {
         std::shared_ptr<T> data;
-        std::atomic<Node*> next; 
+        std::atomic<Node*> next;
 
         Node() : data(nullptr), next(nullptr) {}
         Node(T val) : data(std::make_shared<T>(std::move(val))), next(nullptr) {}
@@ -44,14 +44,14 @@ public:
 
         Node* new_node = new Node(val);
         while (true) {
-            Node* current_tail = tail.load(); 
-            Node* current_tail_next = current_tail->next.load(); 
+            Node* current_tail = tail.load();
+            Node* current_tail_next = current_tail->next.load();
 
             if (current_tail == tail.load()) {
                 if (current_tail_next == nullptr) {
                     Node* expected = nullptr;
                     if (current_tail->next.compare_exchange_weak(expected, new_node)) {
-                        tail.compare_exchange_weak(current_tail, new_node); 
+                        tail.compare_exchange_weak(current_tail, new_node);
                         threads_in_queue.fetch_sub(1);
                         return;
                     }
@@ -67,17 +67,17 @@ public:
         threads_in_queue.fetch_add(1);
 
         while (true) {
-            Node* current_head = head.load(); 
-            Node* current_tail = tail.load(); 
+            Node* current_head = head.load();
+            Node* current_tail = tail.load();
             Node* current_head_next = current_head->next.load();
 
-            if (current_head == head.load()) { 
+            if (current_head == head.load()) {
                 if (current_head == current_tail) {
                     if (current_head_next == nullptr) {
                         threads_in_queue.fetch_sub(1);
                         return nullptr;
-                    } 
-                    tail.compare_exchange_weak(current_tail, current_head_next); 
+                    }
+                    tail.compare_exchange_weak(current_tail, current_head_next);
                 } else {
                     std::shared_ptr<T> result = current_head_next->data;
                     if (head.compare_exchange_weak(current_head, current_head_next)) {
@@ -127,7 +127,7 @@ public:
             while (true) {
                 last->next.store(expected);
                 if (to_be_deleted.compare_exchange_weak(expected, first)) {
-                    break; 
+                    break;
                 }
             }
         }
@@ -137,7 +137,7 @@ public:
             while (Node* next = last->next.load()) {
                 last = next;
             }
-            chain_pending_nodes(nodes, last); 
+            chain_pending_nodes(nodes, last);
         }
 };
 
@@ -211,6 +211,6 @@ int main() {
 
     std::this_thread::sleep_for(std::chrono::seconds(3));
 
-    stop_working.store(true, std::memory_order_relaxed); 
-    
+    stop_working.store(true, std::memory_order_relaxed);
+
 }

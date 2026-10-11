@@ -48,7 +48,7 @@ public:
     }
 };
 
-// Globalny punkt startu programu (do mierzenia relatywnego czasu)
+// Global program start time (for measuring elapsed time)
 inline const auto start_time = std::chrono::high_resolution_clock::now();
 
 class SafePrint {
@@ -56,7 +56,7 @@ public:
     SafePrint() {
         auto now = std::chrono::high_resolution_clock::now();
         auto micros = std::chrono::duration_cast<std::chrono::microseconds>(now - start_time).count();
-        
+
         buffer << "[" << std::setw(8) << micros << " us] ";
     }
 
@@ -83,7 +83,7 @@ int main() {
     int const ITERATIONS = 5;
 
     auto on_completion = []() {
-        SafePrint() << "[SYSTEM] Wszystkie wątki dotarły do bariery. Przechodimy przez barierę i zaczynamy kolejna fazę.\n";
+        SafePrint() << "[SYSTEM] All threads have reached the barrier. Crossing the barrier and starting the next phase.\n";
     };
 
     Barrier<> barrier(N, on_completion);
@@ -93,21 +93,21 @@ int main() {
     for (int i = 1; i <= N; i++) {
         threads.emplace_back([&barrier, i, ITERATIONS](){
             for (int it = 1; it <= ITERATIONS; it++) {
-                SafePrint() << "[Wątek " << i << "] " << "START: " << it << "\n";
+                SafePrint() << "[Thread " << i << "] " << "START: " << it << "\n";
 
-                // wątki parzyste szybkie, reszta wolna
+                // Even-numbered threads are fast; the others are slow
                 std::this_thread::sleep_for(std::chrono::milliseconds(100 + 500 * (i & 1)));
 
-                SafePrint() << "[Wątek " << i << "] " << "END: " << it << "\n";
+                SafePrint() << "[Thread " << i << "] " << "END: " << it << "\n";
 
                 barrier.arrive_and_wait();
 
-                SafePrint() << "[Wątek " << i << "] " << "Przeszedł prze barierę:  " << it << "\n";
+                SafePrint() << "[Thread " << i << "] " << "Crossed the barrier:  " << it << "\n";
             }
         });
     }
 
     for (auto& t: threads) t.join();
 
-    std::cout << "[SYSTEM] Koniec testowania.\n";
+    std::cout << "[SYSTEM] Testing finished.\n";
 }

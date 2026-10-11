@@ -19,8 +19,8 @@ private:
 
 public:
     int id;
-    
-    explicit Vertex(int id_) : id(id_) {} 
+
+    explicit Vertex(int id_) : id(id_) {}
 
     Vertex(const Vertex&) = delete;
     Vertex& operator=(const Vertex&) = delete;
@@ -29,7 +29,7 @@ public:
     Vertex& operator=(Vertex&&) = delete;
 
 friend class ConcurrentGraph;
-    
+
 };
 
 class ConcurrentGraph {
@@ -159,7 +159,7 @@ public:
 
         bool optimistic_path_can_be_found = true;
 
-        while (optimistic_path_can_be_found) { 
+        while (optimistic_path_can_be_found) {
             visited.assign(size, false);
             bool is_path_found = dfs(dfs, from);
             if (!is_path_found) { // even optimistic search didn't find any path
@@ -173,7 +173,7 @@ public:
     }
 };
 
-// Globalny punkt startu programu (do mierzenia relatywnego czasu)
+// Global program start time (for measuring elapsed time)
 inline const auto start_time = std::chrono::high_resolution_clock::now();
 
 class SafePrint {
@@ -181,7 +181,7 @@ public:
     SafePrint() {
         auto now = std::chrono::high_resolution_clock::now();
         auto micros = std::chrono::duration_cast<std::chrono::microseconds>(now - start_time).count();
-        
+
         buffer << "[" << std::setw(8) << micros << " us] ";
     }
 
@@ -251,12 +251,12 @@ void sneaky_builder(std::stop_token stoken, ConcurrentGraph& g) {
 int main() {
     ConcurrentGraph graph(N);
 
-    SafePrint() << "--- START TESTÓW ---\n";
+    SafePrint() << "--- START TESTS ---\n";
 
     std::vector<std::jthread> builders, destroyers;
     for (int i = 0; i < 2; i++) {
         builders.emplace_back(choas_builder, std::ref(graph));
-        destroyers.emplace_back(chaos_destroyer, std::ref(graph)); 
+        destroyers.emplace_back(chaos_destroyer, std::ref(graph));
     }
 
     std::jthread finder(path_finder, std::ref(graph));

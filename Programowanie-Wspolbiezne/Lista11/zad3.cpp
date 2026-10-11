@@ -53,7 +53,7 @@ public:
     }
 };
 
-struct HP_Pair { // w LazyList potrzbujemy zawsze mieć hazard_pointer na akutalny i następny node
+struct HP_Pair { // LazyList needs hazard pointers for both the current and next nodes.
     std::atomic<void*>& hp1;
     std::atomic<void*>& hp2;
 
@@ -80,7 +80,7 @@ class LazyList {
         std::mutex mtx;
         std::atomic<bool> mark{false};
 
-        Node() : data(T()), key(0) {} // dummy node, zawsze będzie przed wszystkimi innymi (zakładamy, ze nasze klucze są >= 1)
+        Node() : data(T()), key(0) {} // The dummy precedes all other nodes; assume keys >= 1.
         Node(T data_, unsigned key_) : data(std::move(data_)), key(key_) {}
 
         void lock() {
@@ -97,9 +97,9 @@ class LazyList {
 
 public:
 
-    LazyList() { // dummy node, żeby zawsze coś było na liście
+    LazyList() { // A dummy node keeps the list nonempty.
         Node* dummy = new Node();
-        head.store(dummy); 
+        head.store(dummy);
     }
 
     LazyList(const LazyList&) = delete;
@@ -119,7 +119,7 @@ public:
 
     std::vector<unsigned> debug_get_all_keys() {
         std::vector<unsigned> keys;
-        Node* curr = head.load()->next.load(); // Pomijamy dummy node
+        Node* curr = head.load()->next.load(); // Skip the dummy node.
         while (curr) {
             if (!curr->mark.load()) {
                 keys.push_back(curr->key);
@@ -139,84 +139,84 @@ public:
             Node* pred = head.load();
             Node* curr = nullptr;
 
-            hp_pred.store(pred);  // bezpieczne, bo nigdy nie będziemy usuwać dummy (on nigdy nie będzie marked)
-            // ustawiamy hp_curr
+            hp_pred.store(pred);  // Safe: the dummy is never deleted or marked.
+            // Publish hp_curr.
             do {
                 curr = pred->next.load();           // read
                 // if (curr == nullptr) break;
                 hp_curr.store(curr);                // set
             } while (pred->next.load() != curr);    // check
 
-            bool again = false; 
-            // użycie hazard_ptr jest trochę inne (tutaj jescze nie zajelismy mutexa!)
-            // poniższa sytuacja może zajść w add, remove i contains
+            bool again = false;
+            // Hazard pointer use differs here: we have not locked the mutex yet.
+            // This situation can occur in add, remove, and contains.
 
 
             // HEAD -> A - > B - > C
 
-            // 1. hp_pred na A i próbuje hp_curr na B, ale zostaje wywłaszczony.
-            // 2. Inny wątek usuwa A: oznacza je i przepina head.next na B.
-            // 3. Następnie omija A, przechodzi do B i przepina head.next na C.
+            // 1. Protect A with hp_pred, then get preempted before protecting B with hp_curr.
+            // 2. Another thread marks A and redirects head.next to B.
+            // 3. It then skips A, reaches B, and redirects head.next to C.
 
 
 
-            // może się zdarzyć taka sytuacja, że jeden wątek przyjdzie, ustawi swoje hp_pred na A
-            // nastepnie będzie chciało ustawić hp_curr na B, jednak
-            // inny wątek w tym czasie moze zechcieć usunąć A
-            // oczywiście, nie zrobi tego, ale ustawi A na marked
-            // następnie może usunąc B
-            // my nie mamy B w naszym hp_curr (zał, że nikt nie ma)
-            // więc B zostanie trwale usunięty ..
+            // A thread can publish hp_pred for A
+            // and then try to publish hp_curr for B, while
+            // another thread attempts to remove A.
+            // A remains protected, but it is marked.
+            // The other thread can then remove B.
+            // We have not protected B with hp_curr; assume nobody else has either.
+            // B can therefore be reclaimed.
 
-            // no i teraz jest problem, bo skoro A zostało zazaczone na marked
-            // to już nikt nie zaktualizował jego wskaźnika next na C, next(A) to wciąż B, które jest deleted!!!
-            // nasz wątek odwołuje się wyczyszczonego bloku pamięci
+            // Because A was marked,
+            // its next pointer was not redirected to C: next(A) still points to deleted B.
+            // Our thread would access reclaimed memory.
 
-            // żeby temu zapobiec musimy sprawdzać, czy pred nie jest marked
-            // musimy to zrobć według zasady read-set-check
+            // Prevent this by checking whether pred is marked.
+            // Follow the read-set-check protocol.
 
-            while (curr && curr->key < key) { // póki nie spełniliśmy warunków
+            while (curr && curr->key < key) { // Continue until the search condition is met.
                 pred = curr;
-                hp_pred.store(curr);  // bezpieczne, bo na curr mamy już inny hp
-                // próbujemy przepiąć się dalej, ustawić nowy hp
+                hp_pred.store(curr);  // Safe: curr is already protected by another hazard pointer.
+                // Advance and publish the next hazard pointer.
                 do {
                     curr = pred->next.load();           // read
                     if (curr == nullptr) break;
                     hp_curr.store(curr);                // set
-                } while (pred->next.load() != curr);    // check 
-                // } while (curr->marked.load());    // check 
+                } while (pred->next.load() != curr);    // check
+                // } while (curr->marked.load());    // check
 
 
-                // jeśli pred okazał sie usunięty, to żeby nie dopuścić do sytuacji, 
-                // która opisałem wcześniej wystarczy, że zaczniemy od początku
+                // If pred was removed, restart
+                // to avoid the situation described above.
                 if (pred->mark.load()) {                // CHECK
                     again = true;
                     break;
-                } // raczej mozna sie pozbyc jak bedzimey sprawdzac curr->marked
+                } // Might be removable if curr->marked is checked.
 
             }
 
-            if (again) continue; // zaczynym od początku
+            if (again) continue; // Restart from the beginning.
 
-            {   // bez zmian
+            {   // Unchanged.
                 std::lock_guard<Node> lock_pred(*pred);
                 {
                     if (curr) {
                         std::lock_guard<Node> lock_curr(*curr);
                         if (validate(pred, curr)) {
                             if (curr->key == key) {
-                                return false; // w HP_Pair mamy RAII, więc destruktor sam czyści HP
+                                return false; // HP_Pair uses RAII; its destructor clears the hazard pointers.
                             } else {
                                 Node* new_node = new Node(item, key);
                                 new_node->next.store(curr);
                                 pred->next.store(new_node);
-                                return true;  // w HP_Pair mamy RAII, więc destruktor sam czyści HP
+                                return true;  // HP_Pair uses RAII; its destructor clears the hazard pointers.
                             }
                         }
                     } else if (validate(pred)){
                         Node* new_node = new Node(item, key);
                         pred->next.store(new_node);
-                        return true;  // w HP_Pair mamy RAII, więc destruktor sam czyści HP
+                        return true;  // HP_Pair uses RAII; its destructor clears the hazard pointers.
                     }
                 }
             }
@@ -229,14 +229,14 @@ public:
         auto& hp_pred = hps.hp1;
         auto& hp_curr = hps.hp2;
 
-        // początek jest analgocizny jak w add
+        // The initial steps match add.
 
         while (true) {
 
             Node* pred = head.load();
             Node* curr = nullptr;
 
-            hp_pred.store(pred); 
+            hp_pred.store(pred);
 
             do {
                 curr = pred->next.load();
@@ -248,7 +248,7 @@ public:
 
             while (curr && curr->key < key) {
                 pred = curr;
-                hp_pred.store(curr); 
+                hp_pred.store(curr);
 
                 do {
                     curr = pred->next.load();
@@ -261,8 +261,8 @@ public:
                     break;
                 }
             }
-           
-            if (!curr) { // jeśli i tak mamy nullptr to dokopaliśmy się do końca
+
+            if (!curr) { // A null pointer means we reached the end.
                 return std::nullopt;
             }
 
@@ -270,7 +270,7 @@ public:
 
 
             {
-                std::unique_lock<Node> lock_pred(*pred); // uniqe_lock żeby móc zrobić unlock wcześniej
+                std::unique_lock<Node> lock_pred(*pred); // Use unique_lock to allow early unlocking.
                 {
                     std::unique_lock<Node> lock_curr(*curr);
                     if (validate(pred, curr)) {
@@ -281,20 +281,20 @@ public:
                             pred->next.store(curr->next.load());
                             T result = std::move(curr->data);
 
-                            // zwalnaimy blokady, żeby nikt bez senus nie czekał kiedy my juz usuwamy wierzchołki
+                            // Release locks before reclaiming nodes so other threads need not wait.
 
-                            hp_curr.store(nullptr); 
-                            hp_pred.store(nullptr); 
+                            hp_curr.store(nullptr);
+                            hp_pred.store(nullptr);
 
                             lock_curr.unlock();
                             lock_pred.unlock();
 
-                            if (outstanding_hazard_pointers_for(curr)) { // jak node jest gdzieś hp (u nas już na pewno nie jest!) to doczepiamy
+                            if (outstanding_hazard_pointers_for(curr)) { // If another hazard pointer protects the node, defer reclamation; ours is already cleared.
                                 reclaim_later(curr);
-                            } else { // wpp możemy usunąć
+                            } else { // Otherwise, delete it immediately.
                                 delete curr;
                             }
-                            delete_nodes_with_no_hazards(); // usuwamy to co możemy
+                            delete_nodes_with_no_hazards(); // Reclaim all unprotected nodes.
                             return result;
                         }
                     }
@@ -304,11 +304,11 @@ public:
     }
 
     bool contains(unsigned key) {
-        auto hps = get_hazard_pointer_pair_for_current_thread(); 
+        auto hps = get_hazard_pointer_pair_for_current_thread();
         auto& hp_curr = hps.hp1;
         auto& hp_next = hps.hp2;
 
-        // tutaj analogiczna sytuacja co w add i remove
+        // The same situation as in add and remove applies here.
 
         while (true) {
             Node* curr = head.load();
@@ -333,7 +333,7 @@ public:
                 curr = next;
                 hp_curr.store(next);
             }
-            if (!again) return curr && curr->key == key && !curr->mark.load(); 
+            if (!again) return curr && curr->key == key && !curr->mark.load();
         }
     }
 
@@ -343,7 +343,7 @@ private:
         return !last->mark.load() && last->next.load() == nullptr;
     }
 
-    bool validate(Node* pred, Node* curr) { 
+    bool validate(Node* pred, Node* curr) {
         return !pred->mark.load() && !curr->mark.load() && pred->next.load() == curr;
     }
 
@@ -357,11 +357,11 @@ private:
     }
 
     template<typename U>
-    static void do_delete(void* p) { // static dlatego, że będziemy mieli statyczna liste do usunięcia, metoda nie może brać potajemnie this
+    static void do_delete(void* p) { // Static because reclamation uses a static list; no implicit this pointer is allowed.
         delete static_cast<U*>(p);
     }
 
-    struct data_to_reclaim 
+    struct data_to_reclaim
     {
         void* data;
         std::function<void(void*)> deleter;
@@ -377,7 +377,7 @@ private:
 
     // std::atomic<data_to_reclaim*> nodes_to_reclaim;
 
-    inline thread_local static data_to_reclaim* my_nodes_to_reclaim{nullptr}; // inline, dziwne, ale każdy wątek ma swoją liste, to powinno byc sprawniejsze, ale tez ma swoje wady, bo trzeba czekać na innych aż usuną co trzeba
+    inline thread_local static data_to_reclaim* my_nodes_to_reclaim{nullptr}; // Each thread has its own reclamation list; this can be faster but reclamation depends on other threads clearing theirs.
 
     void add_to_reclaim_list(data_to_reclaim* node) {
         // node->next = nodes_to_reclaim.load();
@@ -447,23 +447,23 @@ void run_sequential_sanity_check() {
     assert(list.add(100, 1) == true);
     assert(list.add(200, 2) == true);
     assert(list.add(300, 3) == true);
-    assert(list.add(100, 1) == false); // Duplikat
+    assert(list.add(100, 1) == false); // Duplicate
 
     assert(list.contains(2) == true);
-    assert(list.contains(4) == false); // Nie ma tego klucza
+    assert(list.contains(4) == false); // This key is absent.
 
     auto val = list.remove(2);
     assert(val.has_value() && val.value() == 200);
-    assert(list.contains(2) == false); // Logicznie wyrzucony
+    assert(list.contains(2) == false); // Logically removed.
 
-    assert(list.remove(2) == std::nullopt); // Fizycznie wyrzucony
+    assert(list.remove(2) == std::nullopt); // Physically removed.
 
     SafePrint() << "[TEST] Sanity check PASSED.\n";
 }
 
 void run_concurrent_stress_test() {
     SafePrint() << "[TEST] Running concurrent stress test...\n";
-    
+
     LazyList<int> list;
     std::atomic<bool> stop_flag{false};
     std::atomic<bool> start_signal{false};
@@ -478,7 +478,7 @@ void run_concurrent_stress_test() {
 
         while (!stop_flag.load(std::memory_order_relaxed)) {
             unsigned key = dist(rng);
-            list.add(id * 1000, key); 
+            list.add(id * 1000, key);
             std::this_thread::sleep_for(std::chrono::microseconds(10));
         }
     };
@@ -542,7 +542,7 @@ void run_deterministic_test() {
         while (!start_signal.load(std::memory_order_acquire)) std::this_thread::yield();
         unsigned start_key = id * items_per_thread + 1;
         unsigned end_key = start_key + items_per_thread - 1;
-        
+
         for (unsigned key = start_key; key <= end_key; ++key) {
             list.add(key * 10, key);
         }
@@ -552,10 +552,10 @@ void run_deterministic_test() {
         while (!start_signal.load(std::memory_order_acquire)) std::this_thread::yield();
         unsigned start_key = id * items_per_thread + 1;
         unsigned end_key = start_key + items_per_thread - 1;
-        
+
         for (unsigned key = start_key; key <= end_key; ++key) {
             if (key % 2 == 0) {
-                // Kręcimy się, dopóki producent nie doda elementu i my go nie usuniemy
+                // Spin until the producer adds an item and we remove it.
                 while (!list.remove(key).has_value()) {
                     std::this_thread::yield();
                 }
@@ -570,11 +570,11 @@ void run_deterministic_test() {
             threads.emplace_back(consumer, i);
         }
         start_signal.store(true, std::memory_order_release);
-    } // Wychodząc z tego zakresu, jthread automatycznie robi .join() dla wszystkich wątków
+    } // Leaving this scope automatically joins all jthreads.
 
-    // Weryfikacja stanu struktury (tutaj już jesteśmy jednowątkowo)
+    // Verify the structure after all concurrent work has finished.
     auto final_keys = list.debug_get_all_keys();
-    
+
     unsigned expected_count = (num_threads * items_per_thread) / 2;
     if (final_keys.size() != expected_count) {
         throw std::runtime_error("Deterministic test failed: wrong number of elements!");
@@ -595,7 +595,7 @@ void run_deterministic_test() {
 void run_throughput_benchmark() {
     int sec = 10;
     SafePrint() << std::format("[TEST] Running throughput benchmark ({} seconds)...\n", sec);
-    
+
     LazyList<int> list;
     std::atomic<bool> stop_flag{false};
     std::atomic<bool> start_signal{false};
@@ -605,19 +605,19 @@ void run_throughput_benchmark() {
         while (!start_signal.load(std::memory_order_acquire)) std::this_thread::yield();
 
         std::mt19937 rng(id);
-        std::uniform_int_distribution<unsigned> dist(1, 1000); // Wąski zakres zwiększa rywalizację
+        std::uniform_int_distribution<unsigned> dist(1, 1000); // A narrow range increases contention.
         uint64_t local_ops = 0;
 
         while (!stop_flag.load(std::memory_order_relaxed)) {
             unsigned op = dist(rng) % 100;
             unsigned key = dist(rng);
-            
+
             if (op < 20) {
-                list.add(key * 10, key); // 20% czasu to pisanie
+                list.add(key * 10, key); // 20% of operations are insertions.
             } else if (op < 40) {
-                list.remove(key);        // 20% czasu to usuwanie
+                list.remove(key);        // 20% of operations are removals.
             } else {
-                list.contains(key);      // 60% czasu to czytanie (wait-free)
+                list.contains(key);      // 60% of operations are reads (wait-free).
             }
             local_ops++;
         }
@@ -625,15 +625,15 @@ void run_throughput_benchmark() {
     };
 
     std::vector<std::jthread> threads;
-    for (int i = 0; i < 8; ++i) threads.emplace_back(worker_task, i); // Mocne obciążenie 8 wątkami
+    for (int i = 0; i < 8; ++i) threads.emplace_back(worker_task, i); // Stress the structure with eight threads.
 
 
     start_signal.store(true, std::memory_order_release);
     std::this_thread::sleep_for(std::chrono::seconds(sec));
     stop_flag.store(true, std::memory_order_relaxed);
-    
-    // Niszczenie jthreadów - musimy na nie poczekać przed odczytem total_ops
-    threads.clear(); 
+
+    // Destroy the jthreads and wait before reading total_ops.
+    threads.clear();
 
     uint64_t ops = total_ops.load();
     SafePrint() << "[TEST] Benchmark finished: " << (ops / sec) << " operations / sec.\n";

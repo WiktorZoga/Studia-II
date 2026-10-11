@@ -12,7 +12,7 @@ class lock_free_stack
 {
 private:
     struct node;
-    
+
     struct counted_node_ptr
     {
         int external_count;
@@ -24,7 +24,7 @@ private:
         std::shared_ptr<T> data;
         std::atomic<int> internal_count;
         counted_node_ptr next;
-        
+
         node(T const& data_):
             data(std::make_shared<T>(data_)),
             internal_count(0)
@@ -82,20 +82,20 @@ public:
             {
                 std::shared_ptr<T> res;
                 res.swap(ptr->data);
-                
+
                 int const count_increase = old_head.external_count - 2;
-                
-                // MIEJSCE DO SABOTAŻU #1
-                // if(ptr->internal_count.fetch_add(count_increase) == -count_increase) // originalne
-                if(ptr->internal_count.fetch_add(count_increase) == -count_increase) // tutaj jakieś zmiany (np == -count_increase+1)
+
+                // SABOTAGE POINT #1
+                // if(ptr->internal_count.fetch_add(count_increase) == -count_increase) // original condition
+                if(ptr->internal_count.fetch_add(count_increase) == -count_increase) // Try changing this (for example, == -count_increase+1).
                 {
                     delete ptr;
                 }
                 return res;
             }
-            // MIEJSCE DO SABOTAŻU #2 
-            // else if(ptr->internal_count.fetch_sub(1) == 1)  // originalne
-            else if(ptr->internal_count.fetch_sub(1) == 1) // tutaj jakieś zmiany (np == 2)
+            // SABOTAGE POINT #2
+            // else if(ptr->internal_count.fetch_sub(1) == 1)  // original condition
+            else if(ptr->internal_count.fetch_sub(1) == 1) // Try changing this (for example, == 2).
             {
                 delete ptr;
             }
@@ -106,13 +106,13 @@ public:
 int main() {
     std::cout << "[TEST] Starting lock-free stack test with reference counting...\n";
     lock_free_stack<int> stack;
-    
+
     std::atomic<bool> start_signal{false};
     std::atomic<bool> stop_flag{false};
 
     auto worker = [&](int id) {
         while(!start_signal.load()) std::this_thread::yield();
-        
+
         std::mt19937 rng(id);
         std::uniform_int_distribution<int> dist(1, 100);
 
@@ -131,7 +131,7 @@ int main() {
     }
 
     start_signal.store(true);
-    threads.clear(); 
+    threads.clear();
 
     std::cout << "[TEST] Finished successfully. No crashes.\n";
     return 0;

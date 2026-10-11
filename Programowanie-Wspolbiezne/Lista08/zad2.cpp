@@ -9,65 +9,65 @@
 
 class TransactionConsensus {
 private:
-    std::string payload; // Zwykłe dane, brak atomowości
-    double amount;      // Zwykłe dane, brak atomowości
-    // Stan: 0 oznacza brak propozycji, >0 oznacza liczbę głosów poparcia
+    std::string payload; // Ordinary, non-atomic data
+    double amount;      // Ordinary, non-atomic data
+    // State: 0 means no proposal; >0 is the number of supporting votes
     std::atomic<uint32_t> votes{0};
 public:
-    // Wątek inicjujący publikuje propozycję transakcji
+    // The initiating thread publishes a transaction proposal
     void propose(const std::string& p, double a) {
         payload = p;
         amount = a;
-        // 1. ZADANIE: Ustaw 'votes' na 1. Użyj najsłabszego,
-        // odpowiedniego porządku pamięci, który opublikuje 'payload' i 'amount'.
-        // MIEJSCE NA TWÓJ KOD
+        // 1. EXERCISE: Set 'votes' to 1. Use the weakest
+        // suitable memory order that publishes 'payload' and 'amount'.
+        // YOUR CODE HERE
 
-        votes.store(1, std::memory_order_release); 
-        // trzeba zagwarantować, żeby zmiany wykonały sie przed publikacja 'votes'
-        // żeby przy odczytaniu votes z tą nową wartością mieć pewnośc że dane się ustawiły już
+        votes.store(1, std::memory_order_release);
+        // ensure the changes occur before publishing 'votes'
+        // so reading the new vote count also observes the initialized data
     }
-    // Wątki robocze dodają swoje poparcie (wywoływane współbieżnie)
+    // Worker threads add their support (called concurrently)
     void vote_up() {
-        // 2. ZADANIE: Zwiększ 'votes' o 1.
-        // Zastosuj odpowiednią operację atomową, np. RMW (Read-Modify-Write).
-        // MIEJSCE NA TWÓJ KOD
+        // 2. EXERCISE: Increment 'votes' by 1.
+        // Use a suitable atomic operation, such as RMW (read-modify-write).
+        // YOUR CODE HERE
 
-        votes.fetch_add(1, std::memory_order_relaxed); 
-        // tutaj może być relaxed, ponieważ ma to być release-sequence
-        // te wątki wgl, nie dotykaja danych, mają przenieść synchronizacje dalej
+        votes.fetch_add(1, std::memory_order_relaxed);
+        // relaxed is sufficient here because the operation extends a release sequence
+        // these threads do not access the data; they pass synchronization along
 
     }
 
     void vote_up_check() {
 
-        uint32_t expected = votes.load(std::memory_order_acquire); 
-        // dlatego, że chcemy sprawdzić payload i amount, potrzebujemy synchornizacji
+        uint32_t expected = votes.load(std::memory_order_acquire);
+        // we need synchronization to inspect payload and amount
 
         if (expected > 0) {
-            // tutaj potncjalne odwołanie się do zmiennych, jakaś reguła
-            // "Mamy system współbieżny, w którym jeden wyróżniony wątek tworzy (pojedyńczą) transakcję"
-            // czyli nie grozi na tutaj data race 
+            // a validation rule could access the variables here
+            // "One designated thread creates a single transaction in this concurrent system"
+            // so these reads do not introduce a data race
             if (amount > 42.0) {
-                // zamiast fetch_add robimy takie CAS, nie możemy rozbić tego na dwie instrukcje relaxed,
-                // ponieważ jest wtedy race condition
-                while (!votes.compare_exchange_weak(expected, expected + 1, 
-                                                        std::memory_order_relaxed, 
+                // use CAS instead of fetch_add; we cannot split this into two relaxed operations
+                // because that would introduce a race condition
+                while (!votes.compare_exchange_weak(expected, expected + 1,
+                                                        std::memory_order_relaxed,
                                                         std::memory_order_relaxed));
-                // jeśli CAS się nie udał (bo inny wątek był szybszy i podbił licznik), 
-                // pętla powtórzy sź z nowym 'expected' 
-                
+                // if CAS fails because another thread incremented the counter first,
+                // retry the loop with the updated 'expected'
+
             }
         }
 
     }
 
-    // Wątek egzekutora próbuje wykonać transakcję
+    // The executor thread tries to execute the transaction
     bool try_execute(std::string& out_p, double& out_a, uint32_t& out_level) const {
-        // 3. ZADANIE: Odczytaj 'votes'. Użyj odpowiedniego porządku
-        // synchronizującego z publikacją.
-        // MIEJSCE NA TWÓJ KOD
+        // 3. EXERCISE: Read 'votes'. Use a suitable memory order
+        // that synchronizes with publication.
+        // YOUR CODE HERE
         uint32_t level = votes.load(std::memory_order_acquire);
-        // ostatni element release-sequence
+        // last element release-sequence
         if (level > 0) {
             out_p = payload;
             out_a = amount;
@@ -78,7 +78,7 @@ public:
     }
 };
 
-// Globalny punkt startu programu (do mierzenia relatywnego czasu)
+// Program start time (used to measure elapsed time)
 inline const auto start_time = std::chrono::high_resolution_clock::now();
 
 class SafePrint {
@@ -86,7 +86,7 @@ public:
     SafePrint() {
         auto now = std::chrono::high_resolution_clock::now();
         auto micros = std::chrono::duration_cast<std::chrono::microseconds>(now - start_time).count();
-        
+
         buffer << "[" << std::setw(8) << micros << " us] ";
     }
 
@@ -113,8 +113,8 @@ int const NUM_VOTERS = 5;
 
 void initiator_task() {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    SafePrint() << "[Inicjator] Nowa propozycja...\n";
-    consensus.propose("Zakup XYZ", 100.0);
+    SafePrint() << "[Initiator] New proposal...\n";
+    consensus.propose("Purchase XYZ", 100.0);
 }
 
 void voter_task(int id) {
@@ -126,8 +126,8 @@ void voter_task(int id) {
         std::this_thread::yield();
     }
 
-    SafePrint() << "[Glosujacy " << id << "] Zapoznał sie z ofertą '" << p  << "'. Popiera!\n";
-              
+    SafePrint() << "[Voter " << id << "] Reviewed the proposal '" << p  << "'. Supports it!\n";
+
     consensus.vote_up();
 }
 
@@ -137,15 +137,15 @@ void executor_task() {
     uint32_t l;
 
     uint32_t const REQUIRED_VOTES = 1 + NUM_VOTERS;
-    // wszyscy musza sie zgodzić
+    // everyone must agree
 
     while (true) {
         if (consensus.try_execute(p, a, l)) {
             if (l >= REQUIRED_VOTES) {
-                SafePrint() << "[EGZEKUTOR] KONSENSUS OSIAGNIETY!\n";
-                SafePrint() << "-> Transakcja: " << p << "\n";
-                SafePrint() << "-> Kwota:      " << a << " PLN\n";
-                SafePrint() << "-> Glosy:      " << l << "/" << REQUIRED_VOTES << "\n";
+                SafePrint() << "[EXECUTOR] CONSENSUS REACHED!\n";
+                SafePrint() << "-> Transaction: " << p << "\n";
+                SafePrint() << "-> Amount:      " << a << " PLN\n";
+                SafePrint() << "-> Votes:       " << l << "/" << REQUIRED_VOTES << "\n";
                 break;
             }
         }
@@ -169,6 +169,6 @@ int main() {
     }
     executor.join();
 
-    std::cout << "\nTest zakonczony sukcesem.\n";
+    std::cout << "\nTest completed successfully.\n";
     return 0;
 }
