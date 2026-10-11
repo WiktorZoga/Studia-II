@@ -4,33 +4,33 @@
 #include <chrono>
 #include <thread>
 void heavy_processing(int id) {
-    std::cout << "[" << id << "] Rozpoczynam analize paczki...\n";
-    std::this_thread::sleep_for(std::chrono::seconds(1)); // Symulacja ciężkiej pracy
-    std::cout << "[" << id << "] Koniec analizy.\n";
+    std::cout << "[" << id << "] Starting parcel analysis...\n";
+    std::this_thread::sleep_for(std::chrono::seconds(1)); // Simulate expensive work
+    std::cout << "[" << id << "] Analysis finished.\n";
 }
 int main() {
-    std::cout << "--- Program 4: Zlecanie równoległych zadan ---\n";
+    std::cout << "--- Program 4: Submitting parallel tasks ---\n";
     auto start = std::chrono::steady_clock::now();
-    std::vector<std::future<void>> futures; // tego nie było
+    std::vector<std::future<void>> futures; // Added here
     for (int i = 1; i <= 3; ++i) {
-        // ZADANIE: Dlaczego ten kod działa sekwencyjnie? Napraw to!
-        // std::async(std::launch::async, heavy_processing, i) // tak było
-        futures.emplace_back(std::async(std::launch::async, heavy_processing, i)); // tego nie było
+        // EXERCISE: Why does this code run sequentially? Fix it!
+        // std::async(std::launch::async, heavy_processing, i) // Original version
+        futures.emplace_back(std::async(std::launch::async, heavy_processing, i)); // Added here
     }
-    // dodałem tą pętle
-    for (auto& f: futures) { // & bo std::future nie można kopiować
+    // Added this loop
+    for (auto& f: futures) { // Use & because std::future cannot be copied
         f.get();
     }
 
-    // problem wynikał z tego powodu, ze wszystkie async'ki zwracały futresy z polityką std::launch::async
-    // ale nic tego nie przechwytywało, tzn że mieliśmy wiszącą r-wartość std::future<void>, dla której był wykonywane destruktor,
-    // w destruktorze std::future jeśli wynik nie został jescze odebrany to ma zostać wtedy odebrany
-    // więc w k każdym wykonaniu petli czekalismy na wynik
-    // dodając to do wektora a dopiero poźniej zbierając wyniki dajemy szasnce na asynchronicze wykonanie na wielu wątakch
+    // The problem was that each async call returned a future with the std::launch::async policy
+    // but nothing stored it, so the temporary std::future<void> was immediately destroyed.
+    // The destructor of such a std::future waits for the result if it has not been retrieved.
+    // Thus each loop iteration waited for its result.
+    // Storing futures in a vector and collecting results later allows tasks to run asynchronously on multiple threads.
 
-    std::cout << "Wszystkie zadania wyslane (Główny watek idzie dalej)!\n";
+    std::cout << "All tasks submitted (The main thread continues)!\n";
     auto end = std::chrono::steady_clock::now();
     std::chrono::duration<double> diff = end - start;
-    std::cout << "Calkowity czas: " << diff.count() << " s (a powinno byc ~1s)\n";
+    std::cout << "Total time: " << diff.count() << " s (expected ~1s)\n";
     return 0;
 }

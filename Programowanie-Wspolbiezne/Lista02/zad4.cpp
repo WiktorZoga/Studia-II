@@ -47,7 +47,7 @@ private:
                 for (int col = 0; col < width; col++) {
                     int index = get_index(row, col);
                     int count = count_alive(row, col);
-                    (*write_grid)[index] = 
+                    (*write_grid)[index] =
                         (count == 3 || (count == 2 && ((*read_grid)[index] == 1))) ? 1 : 0;
                 }
             }
@@ -67,13 +67,13 @@ private:
     }
 
 public:
-    GameOfLife(int w, int h, int requested_threads, int iterations) : 
+    GameOfLife(int w, int h, int requested_threads, int iterations) :
         width(w), height(h), num_threads(std::max(1, std::min({(int)std::thread::hardware_concurrency(), requested_threads, h}))), num_iterations(iterations),
-        grid_a(w * h, 0),                        
-        grid_b(w * h, 0),                        
-        read_grid(&grid_a),                      
-        write_grid(&grid_b),                     
-        barrier(num_threads, CompletionStep{this})   
+        grid_a(w * h, 0),
+        grid_b(w * h, 0),
+        read_grid(&grid_a),
+        write_grid(&grid_b),
+        barrier(num_threads, CompletionStep{this})
     {
         workers.reserve(num_threads);
     }
@@ -82,7 +82,7 @@ public:
 
         std::mt19937 rng(std::random_device{}());
         std::uniform_int_distribution<int> dist(0, 1);
-        
+
         for (int i = 0; i < width * height; i++) {
             grid_a[i] = dist(rng);
         }

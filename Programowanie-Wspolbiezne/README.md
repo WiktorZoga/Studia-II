@@ -1,22 +1,29 @@
-# Concurrent Programming in Modern C++
+# Programowanie współbieżne w C++
 
-Coursework repository for **Programowanie Współbieżne**. It collects C++20 and
-C++23 exercises covering threads, the C++ memory model, non-blocking data
-structures, and safe memory reclamation.
+Rozwiązania ćwiczeń w C++20/C++23, pogrupowane w listy 01–14.
+Kod, rozwiązania opisowe oraz materiały są rozdzielone według ich funkcji.
 
-The repository is currently intended to remain private. Assignment PDFs are
-kept as private course materials and must not be made public without checking
-their publication rights.
+## Struktura
 
-## Requirements
+```text
+ListaNN/
+  zadN.cpp          rozwiązanie lub program testowy
+  zadN.md           rozwiązanie opisowe albo uzasadnienie
+  progN.cpp         przykład, jeśli występuje
+  *.h               komponenty używane przez zadania
+  CMakeLists.txt    konfiguracja listy
+  materialy/        PDF-y i listingi prowadzących
+  drafts/           zachowane wcześniejsze próby, poza budowaniem
+cmake/              wspólna konfiguracja kompilacji
+```
 
-- CMake 3.20 or newer
-- A C++ compiler with C++20 and C++23 support
-- Ninja (used by the supplied presets)
+Markdowny `zad*.md` są częścią rozwiązań. Niektóre zadania mają wyłącznie
+rozwiązanie tekstowe — nie odpowiada im osobny plik C++.
 
-## Build and test
+## Budowanie i testy
 
-Configure and build every available exercise:
+Wymagania: CMake 3.20+, Ninja i kompilator obsługujący C++20 oraz C++23.
+Polecenia uruchamiaj z katalogu `Programowanie-Wspolbiezne`:
 
 ```sh
 cmake --preset debug
@@ -24,45 +31,38 @@ cmake --build --preset debug
 ctest --preset debug
 ```
 
-Build one exercise after configuring the project:
+Jedno zadanie:
 
 ```sh
-cmake --build build/debug --target lista13_zad1
+cmake --build build/debug --target lista14_zad2
+./build/debug/Lista14/lista14_zad2
 ```
 
-Sanitizers are optional and intentionally disabled by default:
+## Listy
 
-```sh
-cmake --preset asan
-cmake --build --preset asan
-```
+| Listy | Tematy |
+| --- | --- |
+| [01](Lista01/)–[05](Lista05/) | Wątki, mutexy, semafory, future i atomiki |
+| [06](Lista06/)–[08](Lista08/) | Model pamięci, synchronizacja, kolejki i bariery |
+| [09](Lista09/)–[12](Lista12/) | Struktury współbieżne i odzyskiwanie pamięci |
+| [13](Lista13/) | Stosy EBR/IBR, historia zbioru i migawki; zadania 1–4 |
+| [14](Lista14/) | Zarządzanie dostępem, silniki zadań, sortowanie i kolejka; zadania 1–5 |
 
-## Repository layout
+Testy CTest obejmują cztery zadania listy 13 i pięć zadań listy 14.
+Zadania 14.6–14.9 nie są zaimplementowane. Pozostałe listy zawierają
+również przykłady i eksperymenty uruchamiane ręcznie. Kompilacja i przejście
+testów nie stanowią dowodu poprawności algorytmów współbieżnych.
 
-- `Lista01`–`Lista14` — exercise sheets and their source code.
-- `ListaNN/docs/` — Polish learning notes and source material for a sheet.
-- `docs/learning-path.md` — topic map and documentation progress.
-- `cmake/` — shared CMake helper for consistently named targets.
+## Ograniczenia
 
-## Exercise index
+Silniki zadań należy zamykać spoza ich własnych workerów. Kolejka dwóch stosów
+wymaga niezgłaszającego wyjątków konstruktora przenoszącego. Sortowanie używa
+iteratorów losowego dostępu i domyślnie konstruowalnych, kopiowalnych elementów;
+dla wartości logicznych ma wariant sekwencyjny.
 
-| Sheet | Language level | Status | Documentation |
-| --- | --- | --- | --- |
-| [Lista01](Lista01/docs/README.md) | C++20 | In progress | Template ready |
-| [Lista02](Lista02/docs/README.md) | C++20 | In progress | Template ready |
-| [Lista03](Lista03/docs/README.md) | C++20 | In progress | Template ready |
-| [Lista04](Lista04/docs/README.md) | C++20 | In progress | Template ready |
-| [Lista05](Lista05/docs/README.md) | C++23 | In progress | Template ready |
-| [Lista06](Lista06/docs/README.md) | C++20 | In progress | Partial notes available |
-| [Lista07](Lista07/docs/README.md) | C++20 | In progress | Partial notes available |
-| [Lista08](Lista08/docs/README.md) | C++23 | In progress | Partial notes available |
-| [Lista09](Lista09/docs/README.md) | C++23 | In progress | Partial notes available |
-| [Lista10](Lista10/docs/README.md) | C++23 | In progress | Template ready |
-| [Lista11](Lista11/docs/README.md) | C++23 | In progress | Template ready |
-| [Lista12](Lista12/docs/README.md) | C++23 | In progress | Partial notes available |
-| [Lista13](Lista13/docs/README.md) | C++23 | Notes available | Four task notes available |
-| [Lista14](Lista14/docs/README.md) | — | Awaiting implementation | Source material only |
+Sanitizery są opcjonalne (`cmake --preset asan`). W lokalnym środowisku macOS
+ASan zatrzymywał się podczas inicjalizacji przed `main`; nie jest to pozytywny
+wynik kontroli pamięci.
 
-The status describes repository organisation, not a correctness guarantee for
-the algorithms. Code review and deeper validation will be performed later,
-exercise by exercise.
+Materiały prowadzących mogą być dostępne tylko lokalnie. Nowych materiałów
+nie należy publikować bez potwierdzenia praw do ich udostępnienia.

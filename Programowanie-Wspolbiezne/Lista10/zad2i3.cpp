@@ -10,7 +10,7 @@
 #include <iomanip>
 #include <iostream>
 
-// Globalny punkt startu programu (do mierzenia relatywnego czasu)
+// Program start time (used to measure elapsed time)
 inline const auto start_time = std::chrono::high_resolution_clock::now();
 
 class SafePrint {
@@ -18,7 +18,7 @@ public:
     SafePrint() {
         auto now = std::chrono::high_resolution_clock::now();
         auto micros = std::chrono::duration_cast<std::chrono::microseconds>(now - start_time).count();
-        
+
         buffer << "[" << std::setw(8) << micros << " us] ";
     }
 
@@ -114,7 +114,7 @@ public:
     Hazard_List(int size) {
         head.store(new Node("dummy"), std::memory_order_relaxed);
         Node* dummy = head.load(std::memory_order_relaxed);
-        
+
         for (int i = 0; i < size; ++i) {
             Node* new_node = new Node(std::to_string(i));
             new_node->next.store(dummy->next.load(std::memory_order_relaxed), std::memory_order_relaxed);
@@ -124,7 +124,7 @@ public:
 
     void read_random(int steps) {
         auto hps = get_hazard_pointer_pair_for_current_thread();
-        auto& hp_current = hps.hp1; 
+        auto& hp_current = hps.hp1;
         auto& hp_next = hps.hp2;
 
         Node* current = head.load(std::memory_order_acquire);
@@ -144,18 +144,18 @@ public:
             hp_current.store(current);
         }
 
-        if (current != head.load(std::memory_order_relaxed)) { 
-            SafePrint() << "[Czytelnik " << std::this_thread::get_id() << "] " << current->data << "\n";
+        if (current != head.load(std::memory_order_relaxed)) {
+            SafePrint() << "[Reader " << std::this_thread::get_id() << "] " << current->data << "\n";
         }
 
         hp_current.store(nullptr);
-        hp_next.store(nullptr); 
+        hp_next.store(nullptr);
     }
 
     void remove_random(int steps) {
         Node* prev = head.load(std::memory_order_acquire);
         Node* current = head.load(std::memory_order_acquire);
-        
+
         for (int i = 0; i < steps; ++i) {
             Node* next_node = current->next.load(std::memory_order_acquire);
             if (next_node == nullptr) break;
@@ -166,15 +166,15 @@ public:
         if (prev == current || current == nullptr) return;
 
         Node* next_node = current->next.load(std::memory_order_acquire);
-        prev->next.store(next_node, std::memory_order_release); 
+        prev->next.store(next_node, std::memory_order_release);
 
-        SafePrint() << "[Pisarz] Odpięto: " << current->data << "\n";
+        SafePrint() << "[Writer] Unlinked: " << current->data << "\n";
 
-        if (outstanding_hazard_pointers_for(current)) { 
+        if (outstanding_hazard_pointers_for(current)) {
             retire_list.push_back(current);
-        } else { 
-            SafePrint() << "[Pisarz] Natychmiastowe usunięcie: " << current->data << "\n";
-            delete current; 
+        } else {
+            SafePrint() << "[Writer] Immediate deletion: " << current->data << "\n";
+            delete current;
         }
 
         scan_retire_list();
@@ -186,7 +186,7 @@ public:
             if (outstanding_hazard_pointers_for(node)) {
                 still_in_use.push_back(node);
             } else {
-                SafePrint() << "[Niszczarka] Opóźnione usunięcie: " << node->data << "\n";
+                SafePrint() << "[Reclaimer] Deferred deletion: " << node->data << "\n";
                 delete node;
             }
         }
@@ -194,7 +194,7 @@ public:
     }
 };
 
-std::atomic<bool> running{true}; 
+std::atomic<bool> running{true};
 
 void reader_thread_task(Hazard_List& list, int reader_id) {
     std::mt19937 rng(std::random_device{}() + reader_id);
@@ -203,7 +203,7 @@ void reader_thread_task(Hazard_List& list, int reader_id) {
     while (running.load(std::memory_order_relaxed)) {
         int steps = dist_steps(rng);
         list.read_random(steps);
-        
+
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 }
@@ -215,7 +215,7 @@ void writer_thread_task(Hazard_List& list) {
     while (running.load(std::memory_order_relaxed)) {
         int steps = dist_steps(rng);
         list.remove_random(steps);
-        
+
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 }

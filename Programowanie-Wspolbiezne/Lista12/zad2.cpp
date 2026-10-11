@@ -84,7 +84,7 @@ private:
         node* const current_tail_ptr = old_tail.ptr;
         while (!tail.compare_exchange_weak(old_tail, new_tail, std::memory_order_release, std::memory_order_relaxed) &&
                 old_tail.ptr == current_tail_ptr);
-        
+
         if (old_tail.ptr == current_tail_ptr) {
             free_external_counter(old_tail);
         } else {
@@ -113,48 +113,48 @@ public:
         new_next.ptr = new node();
         new_next.external_count = 1;
         counted_node_ptr old_tail = tail.load(std::memory_order_relaxed);
-        
+
         for (;;) {
             increase_external_count(tail, old_tail);
             T* old_data = nullptr;
-            
-            // KROK 1: Próba zapisu danych do aktualnego ogona
+
+            // STEP 1: Try writing data into the current tail.
             if (old_tail.ptr->data.compare_exchange_strong(old_data, new_data.get(), std::memory_order_release, std::memory_order_relaxed)) {
                 counted_node_ptr old_next{0, nullptr};
-                
-                // KROK 2: Próba wpięcia następnika
+
+                // STEP 2: Try linking a successor.
                 if (!old_tail.ptr->next.compare_exchange_strong(old_next, new_next, std::memory_order_release, std::memory_order_relaxed)) {
-                    // Ktoś nas ubiegł w kroku 2 i wstawił następnika za nas.
-                    // Nasz przygotowany węzeł usuwamy, bierzemy ten wstawiony przez pomocnika.
+                    // Another thread linked the successor first.
+                    // Delete our prepared node and use the helper's node.
                     delete new_next.ptr;
                     new_next = old_next;
                 }
-                
-                // KROK 3: Przesunięcie ogona globalnego
+
+                // STEP 3: Advance the global tail.
                 set_new_tail(old_tail, new_next);
                 new_data.release();
                 break;
             } else {
-                // SEKCJA POMAGANIA (Bezpieczna pod ASanem)
-                // Ktoś zajął pole data, ale tail jeszcze nie ruszył.
-                // Ładujemy atomowo to, co tam siedzi z barierą acquire.
+                // HELPING SECTION (safe under ASan)
+                // Another thread claimed data, but tail has not advanced.
+                // Load its contents atomically with acquire ordering.
                 counted_node_ptr old_next = old_tail.ptr->next.load(std::memory_order_acquire);
-                
+
                 if (old_next.ptr) {
-                    // KLUCZOWA POPRAWKA: Zanim przekażemy ten węzeł gdziekolwiek dalej, 
-                    // musimy atomowo zwiększyć jego licznik zewnętrzny bezpośrednio w polu next!
-                    // Dzięki temu pop() go nam nie usunie w trakcie trwania tej operacji.
+                    // KEY FIX: Before passing this node elsewhere,
+                    // increment its external count atomically in next itself.
+                    // This prevents pop() from deleting it during this operation.
                     increase_external_count(old_tail.ptr->next, old_next);
-                    
-                    // Teraz bezpiecznie pomagamy przesunąć tail
+
+                    // Now help advance tail safely.
                     set_new_tail(old_tail, old_next);
                 } else {
-                    // Jeśli pole next było puste, to znaczy, że właściciel danych jeszcze 
-                    // nie zdążył go ustawić. Zwalniamy naszą referencję i próbujemy ponownie.
+                    // If next is empty, the data owner has not linked it yet.
+                    // Release our reference and retry.
                     old_tail.ptr->release_ref();
                 }
-                
-                // Odświeżamy stan globalny ogona przed kolejnym obiegiem pętli
+
+                // Refresh the global tail before the next iteration.
                 old_tail = tail.load(std::memory_order_relaxed);
             }
         }
@@ -169,7 +169,7 @@ public:
                 ptr->release_ref();
                 return std::unique_ptr<T>();
             }
-            
+
             counted_node_ptr next = ptr->next.load(std::memory_order_acquire);
             if (head.compare_exchange_strong(old_head, next, std::memory_order_relaxed, std::memory_order_relaxed)) {
                 T* const res = ptr->data.exchange(nullptr, std::memory_order_relaxed);
@@ -182,14 +182,14 @@ public:
 };
 
 int main() {
-    std::cout << "[TEST] Uruchamianie BEZPIECZNEJ kolejki lock-free z POMAGANIEM...\n";
+    std::cout << "[TEST] Starting the SAFE lock-free queue with HELPING...\n";
     lock_free_queue<int> queue;
 
     std::atomic<bool> start_signal{false};
 
     auto worker = [&](int id) {
         while(!start_signal.load(std::memory_order_acquire)) std::this_thread::yield();
-        
+
         std::mt19937 rng(id);
         std::uniform_int_distribution<int> dist(1, 100);
 
@@ -208,8 +208,8 @@ int main() {
     }
 
     start_signal.store(true, std::memory_order_release);
-    threads.clear(); 
+    threads.clear();
 
-    std::cout << "[TEST] Sukces! Kolejka przeszła testy poprawności ASana.\n";
+    std::cout << "[TEST] Success! The queue passed the ASan correctness tests.\n";
     return 0;
 }

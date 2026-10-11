@@ -16,8 +16,8 @@ private:
 
 public:
     int id;
-    
-    explicit Vertex(int id_) : id(id_) {} 
+
+    explicit Vertex(int id_) : id(id_) {}
 
     Vertex(const Vertex&) = delete;
     Vertex& operator=(const Vertex&) = delete;
@@ -26,7 +26,7 @@ public:
     Vertex& operator=(Vertex&&) = delete;
 
 friend class ConcurrentGraph;
-    
+
 };
 
 class ConcurrentGraph {
@@ -111,31 +111,31 @@ private:
 std::mutex SafePrint::mtx;
 
 void slow_reader(ConcurrentGraph& g) {
-    SafePrint() << "[SLOW] Czekam na statystyki...\n";
+    SafePrint() << "[SLOW] Waiting for statistics...\n";
     g.print_node_stats(0);
-    SafePrint() << "[SLOW] Koniec.\n";
+    SafePrint() << "[SLOW] Finished.\n";
 }
 
 void fast_reader(ConcurrentGraph& g) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(50)); 
-    
-    SafePrint() << "[FAST] Sprawdzam are_connected(0, 1)...\n";
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    SafePrint() << "[FAST] Checking are_connected(0, 1)...\n";
     auto start = std::chrono::steady_clock::now();
-    
+
     bool conn = g.are_connected(0, 1);
-    
+
     auto end = std::chrono::steady_clock::now();
     auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    
-    SafePrint() << "[FAST] Skonczyłem w " << diff << " ms. Wynik: " << conn << "\n";
+
+    SafePrint() << "[FAST] Finished in " << diff << " ms. Result: " << conn << "\n";
 }
 
 void writer(ConcurrentGraph& g) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100)); 
-    
-    SafePrint() << "[WRITER] Probuję dodac krawędzie...\n";
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    SafePrint() << "[WRITER] Trying to add edges...\n";
     auto start = std::chrono::steady_clock::now();
-    
+
     g.add_edge(0, 1);
     g.add_edge(0, 2);
     g.add_edge(3, 4);
@@ -146,8 +146,8 @@ void writer(ConcurrentGraph& g) {
 
     auto end = std::chrono::steady_clock::now();
     auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    
-    SafePrint() << "[WRITER] Koniec. Czekał: " << diff << " ms.\n";
+
+    SafePrint() << "[WRITER] Finished. Waited: " << diff << " ms.\n";
 }
 
 int main() {
@@ -157,7 +157,7 @@ int main() {
 
     std::jthread t1(slow_reader, std::ref(graph));
     std::jthread t3(writer, std::ref(graph));
-    std::jthread t2(fast_reader, std::ref(graph)); 
+    std::jthread t2(fast_reader, std::ref(graph));
 
     return 0;
 }

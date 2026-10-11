@@ -15,19 +15,19 @@ class BoundedPriorityQueue {
 private:
     std::priority_queue<T> pq;
     std::mutex mtx;
-    // Semafory do kontroli pojemności (liczba wolnych miejsc i liczba elementów)
+    // Semaphores controlling capacity (free slots and stored elements)
     std::counting_semaphore<> free_slots;
     std::counting_semaphore<> available_items;
 
 public:
-    explicit BoundedPriorityQueue(int capacity) 
+    explicit BoundedPriorityQueue(int capacity)
         : free_slots(capacity), available_items(0) {}
-    
+
     void push(const T& value) {
         free_slots.acquire();
         std::lock_guard<std::mutex> lock(mtx);
         try {
-            pq.push(value); // tutaj może być wyjątek
+            pq.push(value); // This may throw
             available_items.release();
         }
         catch (...) {
@@ -41,10 +41,10 @@ public:
         std::lock_guard<std::mutex> lock(mtx);
         try {
             auto ptr = std::make_shared<T>(std::move(pq.top()));
-            // od tej linijki już nic nie rzuci wyjątku
+            // Nothing after this line will throw
             pq.pop();
             free_slots.release();
-            return ptr; 
+            return ptr;
         }
         catch (...) {
             available_items.release();
@@ -58,7 +58,7 @@ public:
         std::lock_guard<std::mutex> lock(mtx);
         try {
             auto ptr = std::make_shared<T>(pq.top());
-            // od tej linijki już nic nie rzuci wyjątku
+            // Nothing after this line will throw
             pq.pop();
             free_slots.release();
             return ptr;
@@ -101,7 +101,7 @@ void simple_producer(std::stop_token stoken, BoundedPriorityQueue<int>& q, int i
     while (!stoken.stop_requested()) {
         try {
             q.push(value);
-            SafePrint() << "Producent [" << id << "] dodał: " << value << "\n";
+            SafePrint() << "Producer [" << id << "] added: " << value << "\n";
             value++;
         } catch (std::exception &e) {
             SafePrint() << e.what() << "\n";
@@ -113,7 +113,7 @@ void simple_producer(std::stop_token stoken, BoundedPriorityQueue<int>& q, int i
 void simple_consumer(std::stop_token stoken, BoundedPriorityQueue<int>& q, int id) {
     while (!stoken.stop_requested()) {
         auto ptr = q.try_pop();
-        if (ptr) SafePrint() << "Konsument [" << id << "] pobrał: " << *ptr << "\n";
+        if (ptr) SafePrint() << "Consumer [" << id << "] retrieved: " << *ptr << "\n";
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
@@ -134,7 +134,7 @@ int main() {
 
     std::this_thread::sleep_for(std::chrono::seconds(5));
 
-    SafePrint() << "Koniec czasu...\n";
+    SafePrint() << "Time is up...\n";
 
     for (auto& p: producers) p.request_stop();
     for (auto& c: consumers) c.request_stop();

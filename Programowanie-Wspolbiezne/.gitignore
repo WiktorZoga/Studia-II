@@ -1,4 +1,5 @@
 # CMake and build output
+!CMakePresets.json
 /build/
 **/build/
 /cmake-build-*/

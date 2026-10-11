@@ -9,6 +9,11 @@ function(configure_concurrency_target target standard)
         CXX_EXTENSIONS NO)
     target_link_libraries(${target} PRIVATE Threads::Threads)
 
+    # GCC uses libatomic for aggregate atomics that exceed native word sizes.
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        target_link_libraries(${target} PRIVATE atomic)
+    endif()
+
     if(ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         if(USE_TSAN)
             target_compile_options(${target} PRIVATE -fsanitize=thread -g)

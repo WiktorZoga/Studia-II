@@ -48,7 +48,7 @@ public:
 
     LazyList() {
         Node* dummy = new Node();
-        head.store(dummy); 
+        head.store(dummy);
     }
 
     LazyList(const LazyList&) = delete;
@@ -160,7 +160,7 @@ private:
         return !last->mark.load() && last->next.load() == nullptr;
     }
 
-    bool validate(Node* pred, Node* curr) { 
+    bool validate(Node* pred, Node* curr) {
         return !pred->mark.load() && !curr->mark.load() && pred->next.load() == curr;
     }
 
@@ -188,7 +188,7 @@ private:
         while (true) {
             last->trash_next.store(expected);
             if (to_be_deleted.compare_exchange_weak(expected, first)) {
-                break; 
+                break;
             }
         }
     }
@@ -198,7 +198,7 @@ private:
         while (Node* next = last->trash_next.load()) {
             last = next;
         }
-        chain_pending_nodes(nodes, last); 
+        chain_pending_nodes(nodes, last);
     }
 
     static void delete_nodes(Node* nodes) {
@@ -248,23 +248,23 @@ void run_sequential_sanity_check() {
     assert(list.add(100, 1) == true);
     assert(list.add(200, 2) == true);
     assert(list.add(300, 3) == true);
-    assert(list.add(100, 1) == false); // Duplikat
+    assert(list.add(100, 1) == false); // Duplicate
 
     assert(list.contains(2) == true);
-    assert(list.contains(4) == false); // Nie ma tego klucza
+    assert(list.contains(4) == false); // This key is absent.
 
     auto val = list.remove(2);
     assert(val.has_value() && val.value() == 200);
-    assert(list.contains(2) == false); // Logicznie wyrzucony
+    assert(list.contains(2) == false); // Logically removed.
 
-    assert(list.remove(2) == std::nullopt); // Fizycznie wyrzucony
+    assert(list.remove(2) == std::nullopt); // Physically removed.
 
     SafePrint() << "[TEST] Sanity check PASSED.\n";
 }
 
 void run_concurrent_stress_test() {
     SafePrint() << "[TEST] Running concurrent stress test...\n";
-    
+
     LazyList<int> list;
     std::atomic<bool> stop_flag{false};
     std::atomic<bool> start_signal{false};
@@ -279,7 +279,7 @@ void run_concurrent_stress_test() {
 
         while (!stop_flag.load(std::memory_order_relaxed)) {
             unsigned key = dist(rng);
-            list.add(id * 1000, key); 
+            list.add(id * 1000, key);
             std::this_thread::sleep_for(std::chrono::microseconds(10));
         }
     };

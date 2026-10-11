@@ -12,26 +12,26 @@ private:
 
 public:
     void lock() {
-        size_t my_ticket = next_ticket.fetch_add(1, std::memory_order_relaxed); // nie potrzebujemy nic poza atomowością
-        
+        size_t my_ticket = next_ticket.fetch_add(1, std::memory_order_relaxed); // we only need atomicity
+
         while (now_serving.load(std::memory_order_acquire) != my_ticket) {
-            // potrzebujemy synchronizacji z unlock oraz zapewnić, że nic z sekcji krytycznej nie wykona się przed zdobyciem dostępu
-            std::this_thread::yield(); 
+            // synchronize with unlock and keep critical-section operations after lock acquisition
+            std::this_thread::yield();
         }
     }
 
     void unlock() {
         now_serving.fetch_add(1, std::memory_order_release);
-        // potrzebujemy zagwaranotować, że wszystko w sekcji krytycznej się wykonało zadnim ją zwolniliśmy
+        // ensure all critical-section operations complete before releasing the lock
     }
 };
 
-// jeśli nastopi overflow, to zostanie wykowane modulo 2^N, o ile nie mamy 2^N wątków nie ma żadnego problemu
+// overflow wraps modulo 2^N; this is not a problem unless there are 2^N outstanding tickets
 
 TicketLock ticket_lock;
 
-// zmienna krytyczna
-size_t shared_counter = 0; 
+// shared variable protected by the lock
+size_t shared_counter = 0;
 
 int const NUM_THREADS = 8;
 int const INCREMENTS_PER_THREAD = 100000;
@@ -41,8 +41,8 @@ void worker_task(std::stop_token stoken) {
     for (int i = 0; i < INCREMENTS_PER_THREAD && !stoken.stop_requested(); ++i) {
         ticket_lock.lock();
 
-        // sekcja krytyczna
-        shared_counter++; 
+        // critical section
+        shared_counter++;
 
         ticket_lock.unlock();
     }
@@ -50,32 +50,32 @@ void worker_task(std::stop_token stoken) {
 
 int main() {
 
-    // Nawet jak dałem wszędzie relaxed, to testy mi przechodziły ...
+    // The tests passed even when I used relaxed everywhere...
 
-    std::cout << "Test TicketLocka...\n";
-    
+    std::cout << "Testing TicketLock...\n";
+
     std::vector<std::jthread> threads;
-    
+
     for (int i = 0; i < NUM_THREADS; ++i) {
         threads.emplace_back(worker_task);
     }
 
     std::this_thread::sleep_for(std::chrono::seconds(5));
-    
+
     for (auto& t : threads) {
         t.request_stop();
     }
-    
+
     size_t expected = NUM_THREADS * INCREMENTS_PER_THREAD;
-    std::cout << "Oczekiwana wartosc:  " << expected << "\n";
-    std::cout << "Rzeczywista wartosc: " << shared_counter << "\n";
-    
+    std::cout << "Expected value:     " << expected << "\n";
+    std::cout << "Actual value:       " << shared_counter << "\n";
+
     if (shared_counter == expected) {
-        std::cout << "WYNIK: SUKCES!\n";
+        std::cout << "RESULT: SUCCESS!\n";
     } else {
-        std::cout << "WYNIK: DATA RACE! różnica: "
-                  << (expected - shared_counter) << " operacji\n";
+        std::cout << "RESULT: DATA RACE! Difference: "
+                  << (expected - shared_counter) << " operations\n";
     }
-    
+
     return 0;
 }

@@ -5,30 +5,30 @@
 
 void process_chunk(int id) {
     if (id == 2) {
-        throw std::runtime_error("Blad odczytu: Uszkodzone dane w paczce 2!");
+        throw std::runtime_error("Read error: Corrupted data in parcel 2!");
     }
-    std::cout << "Paczka " << id << " przetworzona pomyslnie.\n";
+    std::cout << "Parcel " << id << " processed successfully.\n";
 }
 
 int main() {
-    std::cout << "\n--- Program 2: Bezpieczna propagacja bledow ---\n";
+    std::cout << "\n--- Program 2: Safe error propagation ---\n";
     std::vector<std::future<void>> futures;
     for (int i = 1; i <= 3; ++i) {
         futures.push_back(std::async(std::launch::async, process_chunk, i));
     }
-    std::cout << "Oczekiwanie na wyniki...\n";
-    // ZADANIE: Kod ponizej wywala cala aplikacje gdy jedno z zadan rzuca wyjatek.
-    // Zmodyfikuj go tak, aby przechwycic wyjatek, zignorowac uszkodzona paczke,
-    // wypisac tresc bledu na ekran i pozwolic programowi dokonczyc dzialanie.
+    std::cout << "Waiting for results...\n";
+    // EXERCISE: The code below crashes the application when a task throws an exception.
+    // Modify it to catch the exception, skip the corrupted parcel,
+    // print the error message and allow the program to finish.
     for (int i = 0; i < 3; ++i) {
-        // dodałem blok try...catch
-        // async obsługje wyjątki a ewnetualny złapany wyjątek zostanie przekazy wyżej po wykonaniu .get
-        try { 
+        // Added a try...catch block
+        // async handles exceptions; any captured exception is propagated when .get() is called
+        try {
             futures[i].get();
         } catch (const std::exception& e) {
             std::cout << e.what() << "\n";
         }
     }
-    std::cout << "Wszystkie paczki zostaly podsumowane (Sukces!).\n";
+    std::cout << "All parcels have been accounted for (Success!).\n";
     return 0;
 }

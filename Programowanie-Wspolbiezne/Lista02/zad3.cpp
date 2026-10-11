@@ -62,17 +62,17 @@ public:
 };
 
 counting_semaphore sem(0);
-std::mutex cout_mtx;      
-int threads_inside = 0;   
+std::mutex cout_mtx;
+int threads_inside = 0;
 
 void worker(std::stop_token stoken, int id) {
-    std::cout << "Worker " << id << ": Czeka na żeton\n";
+    std::cout << "Worker " << id << ": Waiting for a token\n";
 
     if (sem.acquire_interruptible(stoken)) {
-        std::cout << "Worker " << id << ": Zdobył żeton\n";
+        std::cout << "Worker " << id << ": Acquired a token\n";
         sem.release();
     } else {
-        std::cout << "Worker " << id << ": Przerwano mu czekanie\n";
+        std::cout << "Worker " << id << ": Wait interrupted\n";
     }
 }
 
@@ -96,6 +96,6 @@ int main() {
             }
         }
     }
-    std::cout << "[MAIN] Koniec\n";
+    std::cout << "[MAIN] Finished\n";
     return 0;
 }

@@ -10,7 +10,7 @@
 int main() {
 
     {
-        // Testy stosu dla jednego wątku
+        // Single-threaded stack tests
 
         lock_free_stack<int> stack(1);
 
@@ -33,7 +33,7 @@ int main() {
     }
 
     {
-        // Testy dla wielu wątków, czy pushe nic nie gubią
+        // Multi-threaded tests verify that pushes lose no values.
         constexpr int worker_count = 8;
         constexpr int pushes_per_worker = 1'000;
         constexpr int total = worker_count * pushes_per_worker;

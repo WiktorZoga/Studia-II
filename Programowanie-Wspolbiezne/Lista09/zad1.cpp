@@ -10,20 +10,20 @@
 #include <sstream>
 #include <mutex>
 
-// Zwykły shared_ptr, dlatego że u mnie std::atomic<std::shared_ptr> się nie kompiluje
+// Plain shared_ptr: std::atomic<std::shared_ptr> did not compile in the original environment
 
 template<typename T>
 class Queue {
     struct Node {
         std::shared_ptr<T> data;
-        std::shared_ptr<Node> next; 
+        std::shared_ptr<Node> next;
 
         Node() : data(nullptr), next(nullptr) {}
         Node(T val) : data(std::make_shared<T>(std::move(val))), next(nullptr) {}
     };
 
-    std::shared_ptr<Node> head; 
-    std::shared_ptr<Node> tail; 
+    std::shared_ptr<Node> head;
+    std::shared_ptr<Node> tail;
 
 private:
     Queue(const Queue&) = delete;
@@ -64,7 +64,7 @@ public:
             auto current_head_next = std::atomic_load_explicit(&current_head->next, std::memory_order_acquire);
             if (current_head == std::atomic_load_explicit(&head, std::memory_order_relaxed)) {
                 if (current_head == current_tail) {
-                    if (current_head_next == nullptr) { 
+                    if (current_head_next == nullptr) {
                         return std::nullopt;
                     }
                     std::atomic_compare_exchange_weak_explicit(&tail, &current_tail, current_head_next, std::memory_order_release, std::memory_order_relaxed);
@@ -114,7 +114,7 @@ void producer(std::stop_token stoken, int id) {
     while (!stoken.stop_requested()) {
         queue.enqueue(it * 10 + id);
         it++;
-        std::this_thread::sleep_for(std::chrono::milliseconds(5)); 
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 }
 
@@ -122,7 +122,7 @@ void consumer(std::stop_token stoken, int id) {
     while (!stoken.stop_requested()) {
         std::optional<int> res = queue.dequeue();
         if (res == std::nullopt) {
-            // SafePrint() << "Consumer " << id << ": Pusty\n";
+            // SafePrint() << "Consumer " << id << ": Empty\n";
         } else {
             SafePrint() << "Consumer " << id << ": " << res.value() << "\n";
         }
@@ -145,7 +145,7 @@ int main() {
     std::this_thread::sleep_for(std::chrono::seconds(5));
 
     for (int i = 0; i < 3; i++) {
-        producers[i].request_stop(); 
+        producers[i].request_stop();
     }
 
     for (int i = 0; i < 3; i++) {

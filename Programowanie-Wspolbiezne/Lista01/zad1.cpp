@@ -71,10 +71,10 @@ void consumer() {
         }
     }
 }
- 
+
 int main() {
 
-    std::cout << "Openning the bar!\n";
+    std::cout << "Opening the bar!\n";
 
     std::vector<std::thread> producers, consumers;
 
@@ -91,7 +91,7 @@ int main() {
     }
 
     std::cout << "Closing the bar.\n";
-    std::cout << "Bufor size and the end: " << bufor.size() << "\n";
+    std::cout << "Buffer size at the end: " << bufor.size() << "\n";
 
     return 0;
 

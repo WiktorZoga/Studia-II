@@ -9,7 +9,7 @@
 
 class MyConditionVariable {
 private:
-    std::atomic<uint32_t> counter{0}; // służy do monitorowania zmiany ilości wybudzeń, jako że "tylko rośnie" nie jestemy podani na błedy w tych wybudzeniach
+    std::atomic<uint32_t> counter{0}; // tracks changes in the wake-up count; its increasing value helps avoid missed notifications
 public:
 
     MyConditionVariable() = default;
@@ -20,7 +20,7 @@ public:
     MyConditionVariable(MyConditionVariable&&) = delete;
     MyConditionVariable& operator=(MyConditionVariable&&) = delete;
 
-    void wait(std::unique_lock<std::mutex>& lock) { // przydałoby sie dodac jescze memory_order, ale na razie tego nie robimy
+    void wait(std::unique_lock<std::mutex>& lock) { // explicit memory orders could be added, but are omitted here
         uint32_t current_notifications = counter.load();
         lock.unlock();
         do {
@@ -30,7 +30,7 @@ public:
     }
 
     void notify_one() noexcept {
-        counter.fetch_add(1); 
+        counter.fetch_add(1);
         counter.notify_one();
     }
 
@@ -40,7 +40,7 @@ public:
     }
 };
 
-// Globalny punkt startu programu (do mierzenia relatywnego czasu)
+// Program start time (used to measure elapsed time)
 inline const auto start_time = std::chrono::high_resolution_clock::now();
 
 class SafePrint {
@@ -48,7 +48,7 @@ public:
     SafePrint() {
         auto now = std::chrono::high_resolution_clock::now();
         auto micros = std::chrono::duration_cast<std::chrono::microseconds>(now - start_time).count();
-        
+
         buffer << "[" << std::setw(8) << micros << " us] ";
     }
 
@@ -83,10 +83,10 @@ void consumer(std::stop_token stoken, Table& table, int id) {
             if (stoken.stop_requested()) return;
             table.cv.wait(lock);
         }
-        // jemy
+        // eat
         table.dishes--;
 
-        SafePrint() << "[Konsument " << id << "]: Zjadł, zostało: " << table.dishes << " dań na stole\n";
+        SafePrint() << "[Consumer " << id << "]: Ate a dish; remaining: " << table.dishes << " dishes on the table\n";
         lock.unlock();
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
@@ -98,7 +98,7 @@ void producer(std::stop_token stoken, Table& table, int id) {
         {
             std::lock_guard<std::mutex> lock(table.mtx);
             table.dishes++;
-            SafePrint() << "[Producent " << id << "]: Ugotował, jest już: " << table.dishes << " dań na stole\n";
+            SafePrint() << "[Producer " << id << "]: Cooked a dish; now: " << table.dishes << " dishes on the table\n";
         }
         table.cv.notify_one();
     }

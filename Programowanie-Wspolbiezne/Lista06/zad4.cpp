@@ -14,7 +14,7 @@ template<typename T>
 class StealingQueue {
 private:
     std::vector<T> queue;
-    std::atomic<int64_t> top{0}, bottom{0}; // będzie nas interesował porządek top, bottom, będziemy robic modulo
+    std::atomic<int64_t> top{0}, bottom{0}; // track the ordering of top and bottom; use modulo for buffer indexing
     int64_t const MAX_SIZE;
 public:
     StealingQueue(int64_t size): MAX_SIZE(size), queue(size) {}
@@ -26,76 +26,76 @@ public:
     StealingQueue& operator=(StealingQueue&&) = delete;
 
     void push(T item) {
-        // bottom modyfikuje tylko właściciel, więc odczyt lokalny może być relaxed
+        // only the owner modifies bottom, so its local load can be relaxed
         int64_t b = bottom.load(std::memory_order_relaxed);
-        
-        // acquire synchronizuje się z release złodziei. 
-        // gwarantuje, że widzimy najświeższy top po udanych kradzieżach.
+
+        // acquire synchronizes with the thieves' release operations.
+        // ensures visibility of top updates from successful steals.
         int64_t t = top.load(std::memory_order_acquire);
-        
-        if (b - t >= MAX_SIZE) return; // zabezpieczenie przed przepełnieniem bufora
+
+        if (b - t >= MAX_SIZE) return; // guard against buffer overflow
 
         queue[b % MAX_SIZE] = std::move(item);
-        
-        // gwarantuje, że fizyczny zapis danych do tablicy
-        // będzie w pełni widoczny ZANIM bottom ulegnie zwiększeniu.
+
+        // ensures that the data written to the array
+        // is fully visible BEFORE bottom is incremented.
         bottom.store(b + 1, std::memory_order_release);
     }
 
     std::optional<T> pop() {
         int64_t b = bottom.load(std::memory_order_relaxed) - 1;
-        
-        // wymuszamy by złodzieje zobaczyli, że "zaklepaliśmy" element
-        // ZANIM my sprawdzimy ich pozycję.
+
+        // ensure the thieves see that we have reserved the element
+        // BEFORE we check their position.
         bottom.store(b, std::memory_order_seq_cst);
 
-        // procesor nie ma prawa zamienić miejscami zapisu bottom i odczytu top
+        // the processor must not reorder the bottom store and top load
         int64_t t = top.load(std::memory_order_seq_cst);
 
         if (t < b) {
-            // Bezpieczna strefa. Złodzieje są daleko, element jest nasz.
+            // Safe region: the thieves are far away, so the element is ours.
             return std::move(queue[b % MAX_SIZE]);
         }
 
         std::optional<T> result = std::nullopt;
-        
+
         if (t == b) {
-            // ostatni element
-            if (top.compare_exchange_strong(t, t + 1, 
-                                            std::memory_order_seq_cst, 
+            // last element
+            if (top.compare_exchange_strong(t, t + 1,
+                                            std::memory_order_seq_cst,
                                             std::memory_order_relaxed)) {
-                // Wygrywamy wyścig
+                // We win the race
                 result = std::move(queue[b % MAX_SIZE]);
             }
-            
-            // nowy top to t + 1. 
-            // kolejka jest teraz pusta, bottom musi go dogonić,
-            // aby zapobiec odwróceniu indeksów (bottom < top).
+
+            // the new top is t + 1.
+            // the deque is now empty; bottom must catch up
+            // to prevent the indices from becoming inverted (bottom < top).
             bottom.store(t + 1, std::memory_order_relaxed);
             return result;
         }
 
-        // t > b: kolejka była pusta 
+        // t > b: the deque was empty
         bottom.store(t, std::memory_order_relaxed);
         return std::nullopt;
     }
 
     std::optional<T> steal() {
-        // odczyt top, a następnie bottom. 
-        // seq_cst blokuje zamianę tych instrukcji miejscami
+        // load top, then bottom.
+        // seq_cst prevents these operations from being reordered
         int64_t t = top.load(std::memory_order_seq_cst);
         int64_t b = bottom.load(std::memory_order_seq_cst);
 
-        if (t < b) { 
-            // nie możemy tu użyć std::move
-            // gdyby wątek to zrobił, a potem przegrał w CAS 
-            // z innym złodziejem, ten wygrany dostałby mógłby dostał dummy a nie prawdziwy obiekt
-            // bo my już przenieślibyśmy jego dane do naszej zmiennej item
-            T item = queue[t % MAX_SIZE]; 
+        if (t < b) {
+            // we cannot use std::move here
+            // if a thread moved the value and then lost the CAS
+            // to another thief, the winner could receive a moved-from object
+            // because we would already have moved its data into our item variable
+            T item = queue[t % MAX_SIZE];
 
-            // wygrywamy wyścig i bierzemy skopiowany element
-            if (top.compare_exchange_strong(t, t + 1, 
-                                            std::memory_order_seq_cst, 
+            // win the race and take the copied element
+            if (top.compare_exchange_strong(t, t + 1,
+                                            std::memory_order_seq_cst,
                                             std::memory_order_relaxed)) {
                 return item;
             }
@@ -138,13 +138,13 @@ void test_logic() {
     q.push(2);
     q.push(3);
 
-    auto val1 = q.pop();   // LIFO: powinno być 3
-    auto val2 = q.steal(); // FIFO: powinno być 1
+    auto val1 = q.pop();   // LIFO: should be 3
+    auto val2 = q.steal(); // FIFO: should be 1
 
     if (val1 == 3 && val2 == 1) {
-        SafePrint() << "Prosty test: OK\n";
+        SafePrint() << "Basic test: OK\n";
     } else {
-        SafePrint() << "Prosty test: BŁĄD\n";
+        SafePrint() << "Basic test: FAILED\n";
     }
 }
 
@@ -152,7 +152,7 @@ void stress_test() {
     const int num_items = 100000;
     const int num_thieves = 4;
     StealingQueue<int> q(num_items * 2);
-    
+
     std::atomic<int> items_processed{0};
     std::atomic<long long> sum_processed{0};
     std::atomic<bool> done{false};
@@ -165,7 +165,7 @@ void stress_test() {
                     items_processed++;
                     sum_processed += *item;
                 }
-                std::this_thread::yield(); 
+                std::this_thread::yield();
             }
         });
     }
@@ -174,7 +174,7 @@ void stress_test() {
     for (int i = 1; i <= num_items; ++i) {
         q.push(i);
         expected_sum += i;
-        
+
         if (i % 10 == 0) {
             if (auto item = q.pop()) {
                 items_processed++;
@@ -186,16 +186,16 @@ void stress_test() {
     done = true;
     thieves.clear();
 
-    SafePrint() << "Wyniki Stress Testu\n";
-    SafePrint() << "Wysłano elementów: " << num_items << "\n";
-    SafePrint() << "Przetworzono:      " << items_processed << "\n";
-    SafePrint() << "Suma oczekiwana:   " << expected_sum << "\n";
-    SafePrint() << "Suma uzyskana:     " << sum_processed << "\n";
+    SafePrint() << "Stress test results\n";
+    SafePrint() << "Items submitted:   " << num_items << "\n";
+    SafePrint() << "Items processed:   " << items_processed << "\n";
+    SafePrint() << "Expected sum:      " << expected_sum << "\n";
+    SafePrint() << "Actual sum:        " << sum_processed << "\n";
 
     if (sum_processed == expected_sum) {
-        SafePrint() << "STATUS: TEST ZALICZONY (Brak wyścigów danych)\n";
+        SafePrint() << "STATUS: TEST PASSED (no mismatches detected)\n";
     } else {
-        SafePrint() << "STATUS: BŁĄD! Sumy się nie zgadzają!\n";
+        SafePrint() << "STATUS: FAILED! The sums do not match!\n";
     }
 }
 
@@ -204,22 +204,22 @@ void test_conflict() {
     std::atomic<int> success_count{0};
 
     for (int i = 0; i < 50000; ++i) {
-        q.push(99); 
+        q.push(99);
 
         std::jthread t([&]() {
             if (q.steal()) success_count++;
         });
 
         if (q.pop()) success_count++;
-        
+
         t.join();
 
         if (success_count != i + 1) {
-            SafePrint() << "Błąd w iteracji " << i << "! Element zginął lub został podwojony.\n";
+            SafePrint() << "Failure in iteration " << i << "! An element was lost or duplicated.\n";
             return;
         }
     }
-    SafePrint() << "Test Konfliktu: OK (50k iteracji bez błędów)\n";
+    SafePrint() << "Contention test: OK (50k iterations without failures)\n";
 }
 
 int main() {
