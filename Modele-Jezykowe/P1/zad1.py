@@ -4,11 +4,12 @@ logging.set_verbosity_error()
 
 generator = pipeline(
     "text-generation",
-    model="flax-community/papuGaPT2",
+    model = "sdadas/polish-gpt2-large",
     device="mps",
 )
 
-history = "Tomek i Ania prowadzą rozmowę na forum internetowym."
+intro = "Tomek i Ania prowadzą rozmowę na forum internetowym."
+history = []
 
 while True:
 
@@ -23,9 +24,9 @@ while True:
         break
 
     prompt = (
-        f"{history}\n"
-        f"Tomek: {user_text}\n"
-        "Ania:"
+        f"{intro}\n"
+        + "\n".join(history)
+        + f"\nTomek: {user_text}\nAnia:"
     )
 
     results = generator(
@@ -63,9 +64,7 @@ while True:
 
     print(f"Ania: {answer}")
 
-    history += (
-        f"\nTomek: {user_text}"
-        f"\nAnia: {answer}"
-    )
+    history.append(f"Tomek: {user_text}\nAnia: {answer}")
+    history = history[-5:]  # Pamiętamy tylko pięć ostatnich wymian.
 
-    print("*"*50 +f"\nHistoria:\n`{history}" + "\n" + "*"*50)
+    print("Historia:\n" + "\n".join(history))

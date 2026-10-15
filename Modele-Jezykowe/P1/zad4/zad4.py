@@ -158,7 +158,7 @@ def main():
 
     examples = {
         group: get_examples(data, group)
-        for group in list(GROUPS) + ["inne"]
+        for group in list(GROUPS) + ["inne"] if group != "wiek"
     }
     example_questions = {question for pairs in examples.values() for question, _ in pairs}
     questions_to_evaluate = [pair for pair in data if pair[0] not in example_questions]

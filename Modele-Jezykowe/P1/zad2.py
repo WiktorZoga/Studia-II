@@ -1,12 +1,14 @@
 from collections import Counter
 
 import torch
-from transformers import logging, pipeline
+from transformers import logging
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 logging.set_verbosity_error()
 
-MODEL_NAME = "flax-community/papuGaPT2"
+MODEL_NAME = "sdadas/polish-gpt2-large"
+# MODEL_NAME = "flax-community/papuGaPT2"
+
 device = (
     "mps"
     if torch.backends.mps.is_available()
