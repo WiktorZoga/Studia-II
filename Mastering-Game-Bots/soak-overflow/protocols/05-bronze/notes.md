@@ -109,9 +109,9 @@ whole-team inactivity in regular matches.
 ## Specification and next scope
 
 The local-only `.scratch/bronze-league/spec.md` under the course root describes a small
-regular-match baseline and acceptance criteria. Existing executable input/output
-checks remain the agreed test interface. No code or tests were changed, and no
-build or game tests were run for this documentation-only request.
+regular-match baseline and acceptance criteria. At specification time, executable
+input/output checks were the agreed test interface. That documentation step
+changed no code or tests and ran no build or game tests.
 
 ## Implementation follow-up
 
@@ -123,3 +123,6 @@ a tutorial. The historical implementation and check records remain local in
 `.scratch/bronze-league/README.md` under the course root.
 The parser and statement snapshot remain unchanged. Results on CodinGame are
 pending the student's test run.
+
+The local test suite was later retired; see the [protocol workflow](../README.md)
+for the current checks and history pointer.

@@ -49,7 +49,7 @@ Map lookup and cover evaluation are implemented in the single submission file.
 The public helpers are `tile_at(setup, position)` and
 `cover_reduction(setup, shooter, target)`, returning the target's damage
 reduction percentage (0, 50, or 75). Position arguments to cover evaluation
-must be valid map coordinates. Tests cover map ordering/edges, cover levels,
+must be valid map coordinates. At implementation time, tests covered map ordering/edges, cover levels,
 incoming directions, shared-cover exceptions, and strongest-cover selection.
 
 The bot now examines empty, unoccupied neighboring tiles and chooses improved
@@ -58,9 +58,12 @@ the destination, favoring less protection and respecting shooting range.
 If decorative cover ties the post-move reductions, original-position protection
 breaks the tie consistently with the tutorial's intended enemy.
 
-Combined `MOVE;SHOOT` output passes local checks across 64 cover/layout
+Combined `MOVE;SHOOT` output passed local checks across 64 cover/layout
 combinations, with ID ordering, occupancy, map blockage, and shooting range
 checks. Floor-only scenarios retain the earlier shooting behavior.
 The local-only `.scratch/covers-league/README.md` under the course root records
 the spec, tickets, and implemented steps. Platform completion and subsequent
 promotion remain pending.
+
+These are historical validation results. The local test suite was later retired;
+see the [protocol workflow](../README.md) for the current checks and history pointer.

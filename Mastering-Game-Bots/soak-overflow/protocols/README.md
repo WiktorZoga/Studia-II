@@ -17,8 +17,9 @@ does not prove that the student has completed an earlier league.
 The latest available statement is stage 05. The reported Bronze inactivity led
 to replacing the tutorial policy with a regular-match baseline. The
 [Bronze comparison](05-bronze/notes.md) records the rules and original mismatch;
-[implementation notes](../../.scratch/bronze-league/README.md) describe the new
-policy and local checks. A platform run of this version is still pending.
+the [bot overview](../README.md) describes the current policy. Historical local
+implementation and check records are kept in the course's ignored
+`.scratch/bronze-league/README.md`. A platform run of this version is still pending.
 
 Folders use the verified objective order. The shooting source filename says
 Wood 3; the exact displayed league for movement was not supplied. Record actual
@@ -57,20 +58,18 @@ a folder only after its actual statement is available. Keep working code in
    triage statuses. Use `needs-info` for a blocking missing protocol section;
    use `ready-for-agent` for an authorized bounded code change. Keep personal
    account actions and promotion verification with the student.
-6. Explain the new mechanic and implement one small agreed change. Verify
-   changed parsing/output with representative input. Before handing off code for
-   submission, run `ctest --test-dir soak-overflow/build --output-on-failure`
-   from the course root. Tests must keep stdin open while waiting for output,
-   checking command count, syntax, and target selection. Then run platform tests
-   with the student. Record observed results; mark promotion only when confirmed.
-7. Keep earlier snapshots and previous-stage checks. Adapt the working bot to
+6. Explain the new mechanic and implement one small agreed change. Build the
+   single-file bot and run it on CodinGame. Record observed results; mark
+   promotion only when confirmed. The former local test suite was removed at
+   the student's request and remains available in Git history at `e89a3f7`.
+7. Keep earlier snapshots. Adapt the working bot to
    the target league; defer large strategy or architecture changes until needed.
 
 ## Source provenance
 
 - Movement statement was uploaded as `game-protocol.pdf`; its retained source
   is [the stage 01 snapshot](01-movement/statement-v01.pdf).
-- Movement starter: [cg-starting-code.cpp](../cg-starting-code.cpp).
+- Movement starter: [starter-v01.cpp](01-movement/starter-v01.cpp).
 - Shooting statement was uploaded as `gp_wood3.pdf`; its retained source
   is [the stage 02 snapshot](02-shooting/statement-v01.pdf).
 - Taking-cover statement was supplied directly at its stage 03 snapshot path.

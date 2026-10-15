@@ -33,6 +33,9 @@ to idle, emits no shooting in bomb mode, and reads current inventory each turn.
 
 The local-only `.scratch/bombs-league/README.md` under the course root records
 the spec, verified primary-source rules, and historical test results. The executable
-stdin/stdout test interface is reused. Sixty-four scripted tutorial replays
-clear all three enemy-only groups safely before the deadline. Platform
+stdin/stdout test interface was reused. At implementation time, sixty-four scripted
+tutorial replays cleared all three enemy-only groups safely before the deadline. Platform
 verification and promotion remain pending.
+
+The local test suite was later retired; see the [protocol workflow](../README.md)
+for the current checks and history pointer.
