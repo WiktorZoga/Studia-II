@@ -10,6 +10,8 @@ projektów i odwołań.
 - [Systemy Operacyjne](Systemy-Operacyjne/README.md) — bieżąca praca zaczyna się
   w `Lista00`.
 - [Modele Językowe](Modele-Jezykowe/README.md) — pierwsza lista jest w `P1`.
+- [Mastering Game Bots](Mastering-Game-Bots/README.md) — projekt Soak Overflow,
+  materiały wykładowe i zadania kursowe.
 
 ## Pozostałe przedmioty w repozytorium
 
@@ -34,6 +36,12 @@ Materiały z innych przedmiotów zostają w dotychczasowych katalogach:
 - Przed zmianą ścieżek sprawdzamy odwołania w kodzie, skryptach i dokumentacji.
 
 ## Współpraca z AI
+
+Katalogi `.scratch/` przechowują lokalne plany, szkice i zgłoszenia używane
+przez umiejętności agentów. Są ignorowane przez Git, podobnie jak historyczne
+notatki organizacyjne w głównym `docs/superpowers/`. Kod, materiały kursowe
+i trwała dokumentacja pozostają wersjonowane. Commit obejmuje jedną logiczną
+zmianę w obrębie przedmiotu wraz z powiązaną dokumentacją.
 
 AI służy tu jako pomoc w nauce i pracy nad repozytorium. Przy zadaniach
 z ćwiczeń zaczynamy od zrozumienia polecenia, omawiamy koncepcje i dochodzimy
