@@ -48,6 +48,9 @@ Celem jest dobra jakość przy możliwie małym zużyciu wspólnego limitu Codex
 ## Struktura i jakość zmian
 
 - Każdy przedmiot pozostaje w osobnym katalogu najwyższego poziomu.
+- `.scratch/` i główne `docs/superpowers/` są lokalnymi, ignorowanymi
+  katalogami roboczymi. Zachowuj je na dysku; trwałe ustalenia zapisuj
+  w wersjonowanej dokumentacji przedmiotu.
 - Nowe materiały umieszczaj zgodnie z `README.md` danego przedmiotu oraz jego
   lokalnym `AGENTS.md`, jeśli istnieje.
 - Nie przenoś plików list bez sprawdzenia zależności, linków i poleceń
@@ -57,3 +60,27 @@ Celem jest dobra jakość przy możliwie małym zużyciu wspólnego limitu Codex
 - Po zmianie dokumentacji sprawdź linki względne oraz `git diff --check`.
   Uruchamiaj testy i kompilacje tylko wtedy, gdy zmieniony kod tego wymaga albo
   użytkownik poprosi o weryfikację.
+
+## Agent skills
+
+The configuration below applies only to `Mastering-Game-Bots/`.
+For work in that course, read `Mastering-Game-Bots/docs/course/lecture-1.md`
+for course requirements and AI collaboration guidance.
+
+### Issue tracker
+
+Local, Git-ignored Markdown tickets in `Mastering-Game-Bots/.scratch/`.
+Before creating, reading, or updating course tickets, read
+`Mastering-Game-Bots/docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default triage roles stored as local ticket statuses.
+Before triaging course tickets, read
+`Mastering-Game-Bots/docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout within `Mastering-Game-Bots/`.
+Before exploring course code or proposing design changes, read
+`Mastering-Game-Bots/docs/agents/domain.md`.
