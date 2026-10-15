@@ -108,7 +108,7 @@ whole-team inactivity in regular matches.
 
 ## Specification and next scope
 
-The [local Bronze spec](../../../.scratch/bronze-league/spec.md) describes a small
+The local-only `.scratch/bronze-league/spec.md` under the course root describes a small
 regular-match baseline and acceptance criteria. Existing executable input/output
 checks remain the agreed test interface. No code or tests were changed, and no
 build or game tests were run for this documentation-only request.
@@ -119,6 +119,7 @@ The original analysis above describes the bot before the Bronze implementation.
 The student subsequently approved all five tickets and requested their
 implementation. The active bot now uses regular-match territory, shooting,
 hunkering, and safe partial splash decisions; initial bombs no longer select
-a tutorial. See the [implementation and checks](../../../.scratch/bronze-league/README.md).
+a tutorial. The historical implementation and check records remain local in
+`.scratch/bronze-league/README.md` under the course root.
 The parser and statement snapshot remain unchanged. Results on CodinGame are
 pending the student's test run.

@@ -61,5 +61,6 @@ breaks the tie consistently with the tutorial's intended enemy.
 Combined `MOVE;SHOOT` output passes local checks across 64 cover/layout
 combinations, with ID ordering, occupancy, map blockage, and shooting range
 checks. Floor-only scenarios retain the earlier shooting behavior.
-The [spec and tickets](../../../.scratch/covers-league/README.md) record the
-implemented steps. Platform completion and subsequent promotion remain pending.
+The local-only `.scratch/covers-league/README.md` under the course root records
+the spec, tickets, and implemented steps. Platform completion and subsequent
+promotion remain pending.
