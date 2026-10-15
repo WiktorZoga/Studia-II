@@ -35,3 +35,7 @@ build/
 
 # Lokalne obrazy instalacyjne
 *.iso
+
+# Local skill workspaces and historical planning notes
+.scratch/
+/docs/superpowers/

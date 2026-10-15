@@ -1,0 +1,3 @@
+# Generated lecturer-benchmarker output
+/benchmarker-generic-*/target/
+*.class
